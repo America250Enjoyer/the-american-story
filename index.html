@@ -184,8 +184,48 @@
   .winner { font-size: 2.2rem; font-weight: 800; text-align: center; margin: 6px 0; letter-spacing: -.8px; }
   .final { display: flex; justify-content: center; gap: 16px; margin: 20px 0; text-align: center; flex-wrap: wrap; }
   .final > div { min-width: 160px; padding: 14px 18px; border-radius: 14px; background: rgba(0, 0, 0, .25); border: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
-  .final > div:first-child { box-shadow: inset 0 2px 0 var(--p1); }
-  .final > div:last-child { box-shadow: inset 0 2px 0 var(--p2); }
+  .final > div { box-shadow: inset 0 2px 0 var(--pc, var(--p1)); }
+  .final .medal { display: block; font-size: 1.5rem; margin-bottom: 4px; }
+  .final > div.lead { border-color: rgba(255, 197, 61, .45); background: linear-gradient(160deg, rgba(255, 197, 61, .12), rgba(0, 0, 0, .25)); }
+
+  /* Category wheel */
+  .wheel-card { text-align: center; max-width: 440px; }
+  .wheel-who { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.15rem; font-weight: 700; margin: 4px 0 12px; }
+  .wheel-box { position: relative; width: min(300px, 78vw); margin: 0 auto; }
+  .wheel-svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 10px 30px rgba(0, 0, 0, .5)); }
+  .wheel-svg text { font-family: inherit; }
+  .wheel-pointer {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 2; width: 0; height: 0;
+    border-left: 16px solid transparent; border-right: 16px solid transparent; border-top: 30px solid #fff;
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .6));
+  }
+  .wheel-result { font-size: 1.5rem; font-weight: 800; min-height: 2.2rem; margin: 14px 0 8px; }
+  #spinBtn { min-width: 220px; }
+
+  /* Multi-player scoreboard and opponent cards (online rooms of up to 4) */
+  .scorebar.multi { flex-direction: column; align-items: stretch; gap: 8px; }
+  .scorebar.multi .qcount { text-align: center; }
+  .score-chips { display: flex; gap: 8px; }
+  .pscore.pc { flex: 1 1 0; min-width: 0; }
+  .pscore.pc::before { background: var(--pc); box-shadow: 0 0 12px var(--pc); }
+  .pscore.pc.me { border-color: var(--pc); }
+  .rivals { display: none; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  #game.online .rivals { display: flex; }
+  #game.online #panel2 { display: none; }
+  #game.online #panel1 { flex-basis: 100%; }
+  .rival {
+    flex: 1 1 170px; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--pc);
+  }
+  .rival .rinfo { flex: 1; min-width: 0; }
+  .rival b { display: block; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rival .status { display: inline-block; margin-top: 3px; }
+  .rival-ans { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+  .rival.gone { opacity: .45; }
+  .lobby { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0; }
+  .lobby-p { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-weight: 600; }
+  .lobby-p small { color: var(--gold); font-weight: 700; }
+  .lobby-p.empty { opacity: .45; padding: 8px 14px; font-weight: 400; }
   .final div b { display: block; font-size: 2.2rem; color: #fff; font-variant-numeric: tabular-nums; margin: 2px 0; }
   #rematchNote { margin-top: 12px; }
   .review { font-size: .9rem; }
@@ -393,7 +433,6 @@
   /* Solo mode: one player, no opponent panel */
   #game.solo .pscore.p2, #game.solo #panel2 { display: none; }
   #game.solo .panel { flex-basis: 100%; }
-  #results.solo .final > div:last-child { display: none; }
   #results.solo .review th:nth-child(4), #results.solo .review td:nth-child(4) { display: none; }
 
   @media (max-width: 600px) {
@@ -448,7 +487,7 @@
       <button class="mode-btn" data-mode="solo">Solo</button>
       <button class="mode-btn selected" data-mode="pvp">Two players (same screen)</button>
       <button class="mode-btn" data-mode="cpu">Vs. computer</button>
-      <button class="mode-btn" data-mode="online">Online duel</button>
+      <button class="mode-btn" data-mode="online">Online (2–4 players)</button>
     </div>
     <div class="row">
       <div id="p2box">
@@ -468,7 +507,7 @@
       <div class="online-grid">
         <div class="online-col">
           <h3>Host a duel</h3>
-          <p class="hint">Get a room code to share. You'll pick the game once they join.</p>
+          <p class="hint">Get a room code to share. Up to 3 friends can join, then you start the match.</p>
           <button class="btn secondary" id="createBtn">Create room</button>
         </div>
         <div class="online-col">
@@ -505,7 +544,7 @@
       <button class="game-card match" id="matchCard">
         <span class="gc-icon">🏆</span>
         <span class="gc-title">Trivia Match</span>
-        <span class="gc-desc">6 rounds of 4 questions: American Presidents, Elections and American History Facts. Each round, bet 1, 3, 5 and 7 points, using each bet once. A right answer wins your bet.</span>
+        <span class="gc-desc">6 rounds of 4 questions. Before each round, players take turns spinning the category wheel: Elections, Presidents, U.S. Wars, States, Policy or Wild Card. Bet 1, 3, 5 and 7 points each round. A right answer wins your bet.</span>
         <span class="gc-progress">Most points after round 6 wins</span>
       </button>
     </div>
@@ -544,11 +583,7 @@
 
 <!-- GAME -->
 <section id="game" class="screen">
-  <div class="scorebar">
-    <div class="pscore p1"><span id="g1name">P1</span><span class="pts" id="g1score">0</span></div>
-    <div class="qcount" id="qcount">Question 1 / 10</div>
-    <div class="pscore p2"><span id="g2name">P2</span><span class="pts" id="g2score">0</span></div>
-  </div>
+  <div class="scorebar" id="scorebar"></div>
   <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
   <div class="timer-num" id="timerNum">10</div>
 
@@ -558,6 +593,7 @@
     <div class="fact" id="fact"></div>
   </div>
 
+  <div class="rivals" id="rivals"></div>
   <div class="panels">
     <div class="panel p1 hidden-opts" id="panel1">
       <h3><span id="pp1name">Player 1</span><span class="status" id="st1">Thinking…</span></h3>
@@ -583,10 +619,7 @@
   <div class="card">
     <div class="trophy" id="trophy">🏆</div>
     <div class="winner" id="winnerText"></div>
-    <div class="final">
-      <div><span id="r1name"></span><b id="r1score"></b><span id="r1right"></span></div>
-      <div><span id="r2name"></span><b id="r2score"></b><span id="r2right"></span></div>
-    </div>
+    <div class="final" id="finalBoxes"></div>
     <div class="progress-banner" id="progressBanner"></div>
     <p class="hint center" id="savedNote"></p>
     <div class="result-actions">
@@ -616,6 +649,21 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- Category wheel (Trivia Match) -->
+<div class="modal-backdrop" id="wheelModal">
+  <div class="modal card wheel-card">
+    <div class="era" id="wheelTitle">Round 1 of 6</div>
+    <div class="wheel-who" id="wheelWho"></div>
+    <div class="wheel-box">
+      <div class="wheel-pointer"></div>
+      <svg id="wheelSvg" viewBox="0 0 300 300" class="wheel-svg"></svg>
+    </div>
+    <div class="wheel-result" id="wheelResult"></div>
+    <button class="btn" id="spinBtn">🎡 Spin the wheel</button>
+    <p class="hint center" id="wheelWait"></p>
+  </div>
+</div>
+
 <!-- Change-avatar dialog -->
 <div class="modal-backdrop" id="avatarModal">
   <div class="modal card">
@@ -631,6 +679,10 @@
 <script src="data/presidents.js"></script>
 <script src="data/match-presidents.js"></script>
 <script src="data/match-elections.js"></script>
+<script src="data/match-elections-2.js"></script>
+<script src="data/match-presidents-2.js"></script>
+<script src="data/match-wars-2.js"></script>
+<script src="data/match-policy-2.js"></script>
 <script src="data/match-facts-1.js"></script>
 <script src="data/match-facts-2.js"></script>
 <script src="data/match-facts-3.js"></script>
@@ -697,8 +749,14 @@ let mode = "pvp", diff = "medium";
 let game = null;
 let timerId = null, cpuTimeout = null, graceTimeout = null;
 let stateRegion = "All";
-// online: host is always player index 0, guest is player index 1. The host is the referee.
-let peer = null, conn = null, isHost = false, me = 0, opponentName = "", opponentAvatar = null;
+// Online rooms hold up to MAX_PLAYERS. The host is always player 0 and acts as the referee;
+// guests get player numbers 1..3 when a match starts. Everyone connects only to the host.
+const MAX_PLAYERS = 4;
+const PCOLORS = ["#4f8cff", "#ff4d5e", "#ffc53d", "#2ee6a6"]; // player colors: blue, red, gold, green
+let peer = null, isHost = false, me = 0, roomCode = "";
+let guests = [];       // host only: [{ c: connection, name, avatar, pi: player index in the current match }]
+let hostConn = null;   // guest only: connection to the host
+let lobby = [];        // guest only: players in the room, as last announced by the host
 
 const $ = id => document.getElementById(id);
 const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -708,13 +766,19 @@ const clampTime = t => Math.min(MATCH_SECONDS, Math.max(0, Number(t) || 0));
 
 function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id)); window.scrollTo(0, 0); }
 function stopTimers() { clearInterval(timerId); clearTimeout(cpuTimeout); clearTimeout(graceTimeout); timerId = null; }
+// Leaving a game mid-spin: stop the wheel and hide it.
+function stopWheel() { clearTimeout(spinTimer); clearTimeout(spinAutoTimer); $("wheelModal").classList.remove("show"); if (game) game.spinning = false; }
 function localPlayer() { return mode === "online" ? me : 0; }
-function interactive(p) { return mode === "pvp" || p === localPlayer(); }
+function interactive(p) { return mode === "pvp" ? p <= 1 : p === localPlayer(); }
+// Which full answer panel (1 or 2) shows player p; 0 means p is shown as a compact opponent card (online).
+function panelNo(p) { return mode === "online" ? (p === me ? 1 : 0) : p + 1; }
+function pel(p, part) { const n = panelNo(p); return n ? $(part + n) : null; }
 function keysFor(p) { return mode === "pvp" && p === 1 ? P2_KEYS : P1_KEYS; }
 function timeLimit() { return game && game.ctx && game.ctx.type === "match" ? MATCH_SECONDS : SECONDS; }
 function remaining() { return Math.max(0, timeLimit() - (performance.now() - game.start) / 1000); }
 function isGuest() { return mode === "online" && !isHost; }
-function connected() { return !!(conn && conn.open); }
+// Host: at least one guest has joined. Guest: connected to the host.
+function connected() { return isHost ? guests.some(g => g.name && g.c.open) : !!(hostConn && hostConn.open); }
 let toastTimer;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2800); }
 
@@ -885,11 +949,11 @@ const HINTS = {
   solo: 'Play on your own at your own pace between questions. Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, or tap. You still get 10 seconds per question.',
   pvp: 'Both players answer every question at the same time on this screen (no peeking at each other\'s side!).<br>Player 1 keys: <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> &nbsp;·&nbsp; Player 2 keys: <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd> &nbsp;(or tap your own panel)',
   cpu: 'Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> or click. The computer answers at the same time.',
-  online: 'Duel a friend on another device. The host creates a room and shares the 5-letter code, the guest joins with it, then the host starts the match. Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, or click.',
+  online: 'Play with up to 3 friends, each on their own device. The host creates a room and shares the 5-letter code, everyone joins with it, then the host starts the match. Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, or click.',
 };
 const SCORE_RULES = {
   solo: '<b>Scoring:</b> correct answer = 100 pts + 10 pts for every second left. Wrong or no answer = 0.',
-  duel: '<b>Trivia Match rules:</b><ul class="match-rules"><li>6 rounds of 4 questions. Round topics: American Presidents → Elections → American History Facts, twice.</li>' +
+  duel: '<b>Trivia Match rules:</b><ul class="match-rules"><li>6 rounds of 4 questions. Before each round, one player spins the 🎡 category wheel (players take turns): 🗳️ Presidential Elections, 🎩 Presidents, ⚔️ U.S. Wars, ⭐ States, 📜 Policy or 🃏 Wild Card. No question repeats in a game.</li>' +
     '<li>Every round you have four bets: <b>1, 3, 5 and 7</b> points. Pick a bet for each question; each bet can be used only once per round.</li>' +
     '<li><b>15 seconds</b> per question. Tap an answer to pick it; you can change your answer and bet until time runs out, or press <b>Lock in</b> to finish early.</li>' +
     '<li>Right answer = you win your bet. Wrong or no answer = 0.</li>' +
@@ -924,7 +988,7 @@ function refreshHome() {
   $("guestNote").style.display = guestLocked ? "" : "none";
   $("leaveBtn").style.display = mode === "online" && peer ? "" : "none";
 }
-function goHome() { closeSheet(); renderBoard(); refreshHome(); show("home"); }
+function goHome() { stopWheel(); closeSheet(); renderBoard(); refreshHome(); show("home"); }
 
 document.querySelectorAll(".mode-btn[data-mode]").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 document.querySelectorAll(".diff").forEach(b => b.onclick = () => {
@@ -1007,7 +1071,7 @@ function openSheet(ctx) {
     : `10 questions about ${info.title}'s history. Get ${PASS} or more right to earn its gold star.`;
   $("sheetBest").textContent = best == null ? "Not played yet" : `Best: ${best}/10${best >= PASS ? " ✅" : ""}`;
   $("sheetVs").textContent = mode === "solo" ? "Solo" : mode === "pvp" ? "Two players, this screen" : mode === "cpu" ? `Vs. computer (${diff})`
-    : connected() ? `Online vs. ${opponentName || "opponent"}` : "Online: no opponent yet";
+    : connected() ? `Online room · ${lobbyPlayers().length} players` : "Online: no room yet";
   const btn = $("sheetStart");
   btn.disabled = false;
   if (mode === "online" && !connected()) { btn.textContent = "Set up an online room first"; btn.onclick = goHome; }
@@ -1021,39 +1085,84 @@ function closeSheet() {
 }
 $("sheetClose").onclick = closeSheet;
 
-// ---------- ONLINE (PeerJS) ----------
+// ---------- ONLINE ROOMS (PeerJS, up to 4 players) ----------
 function onlineStatus(html) { $("onlineStatus").innerHTML = html; }
 function myName() { const p = currentPlayer(); return p ? p.name : (isHost ? "Host" : "Guest"); }
 function myAvatar() { const p = currentPlayer(); return p && presById(p.avatar) ? p.avatar : null; }
 // Avatar for player index p in the current game (the computer gets a robot).
 function av(p, size) { return avatarHTML(game && game.avatars ? game.avatars[p] : null, size, mode === "cpu" && p === 1 ? "🤖" : "👤"); }
 function makeCode() { const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; return Array.from({ length: 5 }, () => A[Math.floor(Math.random() * A.length)]).join(""); }
-function send(msg) { if (connected()) conn.send(msg); }
+// Guest: send to the host. Host: send to every guest in the room.
+function send(msg) {
+  if (isHost) guests.forEach(g => { if (g.c.open) g.c.send(msg); });
+  else if (hostConn && hostConn.open) hostConn.send(msg);
+}
 function peerAvailable() {
   if (typeof Peer !== "undefined") return true;
   onlineStatus("⚠️ Online play couldn't load. Check your internet connection (or whether your network blocks unpkg.com / peerjs.com).");
   return false;
 }
+// Heartbeat: everyone pings every 2 s. A closed tab doesn't always fire a "disconnected" event,
+// so anyone silent for 9 s is treated as gone (guests on the host; the host on each guest).
+const PING_MS = 2000, SILENT_MS = 9000;
+let heartbeat = null, hostLast = 0;
+function startHeartbeat() {
+  clearInterval(heartbeat);
+  heartbeat = setInterval(() => {
+    const now = Date.now();
+    if (isHost) {
+      send({ t: "ping" });
+      [...guests].forEach(g => { if (now - g.last > SILENT_MS) { try { g.c.close(); } catch {} guestLeft(g); } });
+    } else if (hostConn) {
+      send({ t: "ping" });
+      if (hostLast && now - hostLast > SILENT_MS) hostLeft();
+    }
+  }, PING_MS);
+}
 function closeOnline() {
   stopTimers();
-  const c = conn, p = peer;
-  conn = null; peer = null; opponentName = ""; opponentAvatar = null;
-  try { c && c.close(); } catch {}
+  clearInterval(heartbeat); heartbeat = null; hostLast = 0;
+  const p = peer, conns = [...guests.map(g => g.c), hostConn].filter(Boolean);
+  peer = null; hostConn = null; guests = []; lobby = []; roomCode = "";
+  conns.forEach(c => { try { c.close(); } catch {} });
   try { p && p.destroy(); } catch {}
 }
+function inMatch() { return !!(game && game.phase !== "done" && $("game").classList.contains("active")); }
+
+// Who is in the room (host first).
+function lobbyPlayers() {
+  return isHost ? [{ name: myName(), avatar: myAvatar() }, ...guests.filter(g => g.name).map(g => ({ name: g.name, avatar: g.avatar }))] : lobby;
+}
+function renderLobby() {
+  if (!peer) return;
+  const ps = lobbyPlayers();
+  const chips = ps.map((p, i) => `<span class="lobby-p">${avatarHTML(p.avatar, 28)}${esc(p.name)}${i === 0 ? " <small>HOST</small>" : ""}</span>`)
+    .concat(Array.from({ length: Math.max(0, MAX_PLAYERS - ps.length) }, () => '<span class="lobby-p empty">Open seat</span>')).join("");
+  const list = `<div class="lobby">${chips}</div>`;
+  if (isHost) onlineStatus(`Share this code with up to ${MAX_PLAYERS - 1} friends:<span class="room-code">${roomCode}</span>${list}` +
+    (ps.length > 1 ? `<b>${ps.length} of ${MAX_PLAYERS} players in.</b> Start the Trivia Match below whenever everyone's here.` : "Waiting for players to join…"));
+  else onlineStatus(`✅ Connected to the room!${list}Waiting for the host to start the match…`);
+}
+function broadcastLobby() { if (isHost) send({ t: "lobby", players: lobbyPlayers() }); }
 
 function createRoom(attempt = 0) {
   if (!peerAvailable()) return;
   closeOnline();
   isHost = true; me = 0;
-  const code = makeCode();
+  roomCode = makeCode();
   onlineStatus("Creating room…");
-  const p = peer = new Peer(ROOM_PREFIX + code);
+  const p = peer = new Peer(ROOM_PREFIX + roomCode);
   refreshHome();
-  p.on("open", () => onlineStatus(`Share this code with your opponent:<span class="room-code">${code}</span>Waiting for them to join…`));
+  p.on("open", () => { renderLobby(); startHeartbeat(); });
   p.on("connection", c => {
-    if (conn) { c.on("open", () => { c.send({ t: "full" }); setTimeout(() => c.close(), 500); }); return; }
-    conn = c; wireConn(c);
+    // Turn people away if the room is full or a match is already running.
+    const full = guests.length >= MAX_PLAYERS - 1, busy = inMatch();
+    if (full || busy) { c.on("open", () => { c.send({ t: full ? "full" : "busy" }); setTimeout(() => c.close(), 500); }); return; }
+    const g = { c, name: null, avatar: null, pi: null, last: Date.now() };
+    guests.push(g);
+    c.on("data", m => { g.last = Date.now(); onHostMessage(g, m); });
+    c.on("close", () => guestLeft(g));
+    c.on("error", () => guestLeft(g));
   });
   p.on("error", err => {
     if (peer !== p) return;
@@ -1071,77 +1180,121 @@ function joinRoom() {
   onlineStatus("Connecting…");
   const p = peer = new Peer();
   refreshHome();
-  p.on("open", () => { conn = p.connect(ROOM_PREFIX + code, { reliable: true }); wireConn(conn); });
+  p.on("open", () => {
+    const c = hostConn = p.connect(ROOM_PREFIX + code, { reliable: true });
+    c.on("open", () => { hostLast = Date.now(); startHeartbeat(); c.send({ t: "hello", name: myName(), avatar: myAvatar() }); onlineStatus("✅ Connected! Joining the room…"); refreshHome(); });
+    c.on("data", m => { hostLast = Date.now(); onGuestMessage(m); });
+    c.on("close", () => { if (hostConn === c) hostLeft(); });
+    c.on("error", () => { if (hostConn === c) hostLeft(); });
+  });
   p.on("error", err => {
     if (peer !== p) return;
     onlineStatus(err.type === "peer-unavailable" ? "⚠️ No room found with that code. Check it and try again." : "⚠️ Connection problem: " + esc(err.type || err.message));
   });
 }
 
-function wireConn(c) {
-  c.on("open", () => { if (!isHost) { send({ t: "hello", name: myName(), avatar: myAvatar() }); onlineStatus("✅ Connected! The host is choosing a game…"); refreshHome(); } });
-  c.on("data", onMessage);
-  c.on("close", () => { if (conn === c) opponentLeft(); });
-  c.on("error", () => { if (conn === c) opponentLeft(); });
-}
-
-function opponentLeft() {
-  closeOnline();
-  refreshHome();
-  if ($("results").classList.contains("active")) {
-    ["againBtn", "nextEraBtn", "backBtn"].forEach(id => $(id).style.display = "none");
-    $("rematchNote").textContent = "Your opponent has left.";
-    return;
+// --- Host side ---
+function onHostMessage(g, m) {
+  if (!m || typeof m !== "object") return;
+  if (m.t === "hello") {
+    let name = String(m.name || "Guest").slice(0, 20);
+    const taken = new Set(lobbyPlayers().map(p => p.name.toLowerCase()));
+    for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${String(m.name || "Guest").slice(0, 17)} ${n}`; // keep names unique
+    g.name = name; g.avatar = presById(m.avatar) ? m.avatar : null;
+    toast(`${name} joined the room!`);
+    renderLobby(); broadcastLobby(); refreshHome();
+  } else if (m.t === "spin") {
+    // A guest pressed Spin: only accept it from the player whose turn it is.
+    if (game && game.phase === "spin" && m.r === game.spinRound && g.pi === spinnerFor(m.r)) doSpin(m.r);
+  } else if (m.t === "pick") {
+    if (game && game.phase === "asking" && g.pi !== null && game.i === m.i) lockIn(g.pi, validIdx(m.k), clampTime(m.time), Number(m.w));
   }
-  game = null;
-  goHome(); setMode("online");
-  onlineStatus("⚠️ Your opponent disconnected.");
+}
+function guestLeft(g) {
+  if (!guests.includes(g)) return;
+  guests = guests.filter(x => x !== g);
+  if (g.name) toast(`${g.name} left the room.`);
+  if (game && g.pi !== null && game.phase !== "done" && mode === "online") {
+    playerGone(g.pi);
+    send({ t: "left", p: g.pi });
+  }
+  renderLobby(); broadcastLobby(); refreshHome();
 }
 
-function onMessage(m) {
+// --- Guest side ---
+function onGuestMessage(m) {
   if (!m || typeof m !== "object") return;
   switch (m.t) {
-    case "hello":
-      if (isHost) {
-        opponentName = String(m.name || "Guest").slice(0, 20); opponentAvatar = presById(m.avatar) ? m.avatar : null;
-        onlineStatus(`✅ ${esc(opponentName)} joined! Now choose a game below.`);
-        toast(`${opponentName} joined! Pick a game to start.`);
-      }
+    case "lobby":
+      lobby = (Array.isArray(m.players) ? m.players : []).slice(0, MAX_PLAYERS).map(p => ({ name: String((p && p.name) || "Player").slice(0, 20), avatar: p && presById(p.avatar) ? p.avatar : null }));
+      if (!inMatch()) renderLobby();
       break;
-    case "full":
-      closeOnline(); refreshHome(); onlineStatus("⚠️ That room already has two players.");
-      break;
+    case "full": closeOnline(); refreshHome(); onlineStatus(`⚠️ That room is full (${MAX_PLAYERS} players max).`); break;
+    case "busy": closeOnline(); refreshHome(); onlineStatus("⚠️ That room is in the middle of a match. Try again when it's over."); break;
     case "start":
-      if (!isHost && Array.isArray(m.qs) && Array.isArray(m.names)) {
+      if (Array.isArray(m.qs) && Array.isArray(m.names) && Number.isInteger(m.you) && m.you > 0 && m.you < Math.min(m.names.length, MAX_PLAYERS)) {
+        me = m.you;
+        const names = m.names.slice(0, MAX_PLAYERS).map(n => String(n).slice(0, 20));
         closeSheet();
-        beginGame(m.names.map(n => String(n).slice(0, 20)), m.qs, validCtx(m.ctx), (Array.isArray(m.avatars) ? m.avatars : []).map(a => presById(a) ? a : null));
+        beginGame(names, m.qs, validCtx(m.ctx), names.map((_, i) => (Array.isArray(m.avatars) && presById(m.avatars[i])) ? m.avatars[i] : null));
         nextQuestion();
       }
       break;
     case "next":
-      if (!isHost && game && game.phase === "reveal") nextQuestion();
-      break;
-    case "pick":
-      if (isHost && game && game.phase === "asking" && game.i === m.i) lockIn(1, validIdx(m.k), clampTime(m.time), Number(m.w));
+      if (game && game.phase === "reveal") nextQuestion();
       break;
     case "locked":
-      if (!isHost && game && game.phase === "asking" && game.i === m.i) setStatus(0, "🔒 Locked in", "locked");
+      if (game && game.phase === "asking" && game.i === m.i && Number.isInteger(m.p) && m.p !== me && m.p < game.n) setStatus(m.p, "🔒 Locked in", "locked");
+      break;
+    case "left":
+      if (game && Number.isInteger(m.p) && m.p < game.n) playerGone(m.p);
+      break;
+    case "round": // the host spun the wheel: category + this round's questions
+      if (game && WHEEL.includes(m.cat) && Number.isInteger(m.r) && Array.isArray(m.qs) && m.qs.length === Q_PER_ROUND) {
+        const s = v => String(v ?? "");
+        const qs = m.qs.map(q => ({ era: s(q && q.era), q: s(q && q.q), a: s(q && q.a), f: s(q && q.f), opts: (q && Array.isArray(q.opts) ? q.opts : []).slice(0, 4).map(s) }));
+        if (qs.every(q => q.opts.length === 4 && q.opts.includes(q.a))) applyRound(m.r, m.cat, qs);
+      }
       break;
     case "reveal":
-      if (!isHost && game && game.phase === "asking" && game.i === m.i) {
-        game.picks = m.picks.map(validIdx);
-        game.times = m.times.map(clampTime);
-        if (isMatch() && Array.isArray(m.wagers)) [0, 1].forEach(p => {
+      if (game && game.phase === "asking" && game.i === m.i && Array.isArray(m.picks)) {
+        for (let p = 0; p < game.n; p++) { game.picks[p] = validIdx(m.picks[p]); game.times[p] = clampTime((m.times || [])[p]); }
+        if (isMatch() && Array.isArray(m.wagers)) for (let p = 0; p < game.n; p++) {
           // The host is the referee: adopt its record of each player's bet (normally identical to ours).
           const w = Number(m.wagers[p]);
-          if (!WAGERS.includes(w)) return;
+          if (!WAGERS.includes(w)) continue;
           if (game.done[p] && game.wager[p] !== w) game.used[p].delete(game.wager[p]);
           game.wager[p] = w; game.used[p].add(w);
-        });
+        }
         endRound();
       }
       break;
   }
+}
+function hostLeft() {
+  if (!peer && !hostConn) return; // already handled
+  closeOnline(); refreshHome();
+  if ($("results").classList.contains("active")) {
+    ["againBtn", "nextEraBtn", "backBtn"].forEach(id => $(id).style.display = "none");
+    $("rematchNote").textContent = "The host has closed the room.";
+    return;
+  }
+  game = null;
+  goHome(); setMode("online");
+  onlineStatus("⚠️ The host left, so the room closed.");
+}
+
+// A player who disconnects mid-match is skipped from then on (counts as no answer).
+function playerGone(p) {
+  if (!game || game.gone[p]) return;
+  game.gone[p] = true;
+  const card = $("rv-" + p); if (card) card.classList.add("gone");
+  if (game.phase === "asking" && !game.done[p]) {
+    if (isHost || mode !== "online") lockIn(p, null, 0);
+    else { game.done[p] = true; }
+  }
+  setStatus(p, "🚪 Left", "wrong");
+  if (game.phase === "spin") renderSpinPrompt(); // if it was their turn to spin, the turn passes on
 }
 
 $("createBtn").onclick = () => createRoom();
@@ -1152,8 +1305,8 @@ window.addEventListener("pagehide", closeOnline);
 
 // ---------- DUEL ----------
 function canStart() {
-  if (mode === "online" && !(connected() && isHost)) {
-    toast(!peer ? "Create a room (or join one) first." : isHost ? "Wait for your opponent to join first." : "Only the host can start the match.");
+  if (mode === "online" && !(isHost && connected())) {
+    toast(!peer ? "Create a room (or join one) first." : isHost ? "Wait for at least one player to join first." : "Only the host can start the match.");
     return false;
   }
   return true;
@@ -1172,42 +1325,149 @@ function startDuel(ctx) {
 // ---------- TRIVIA MATCH (duels) ----------
 const WAGERS = [1, 3, 5, 7];
 const P1_WKEYS = ["q", "w", "e", "r"], P2_WKEYS = ["u", "i", "o", "p"];
-const MATCH_ROUNDS = ["presidents", "elections", "facts", "presidents", "elections", "facts"];
+const NUM_ROUNDS = 6;
 const Q_PER_ROUND = 4;
+// The six wheel categories, in wheel order (clockwise from the top).
 const MATCH_CATS = {
-  presidents: { name: "American Presidents", icon: "🎩" },
-  elections: { name: "Elections", icon: "🗳️" },
-  facts: { name: "American History Facts", icon: "📜" },
+  elections:  { name: "Presidential Elections", short: "Elections",  icon: "🗳️", color: "#3d6bff" },
+  presidents: { name: "Presidents",             short: "Presidents", icon: "🎩", color: "#e63946" },
+  wars:       { name: "U.S. Wars",              short: "U.S. Wars",  icon: "⚔️", color: "#5b6b8f" },
+  states:     { name: "States",                 short: "States",     icon: "⭐", color: "#d99a00" },
+  policy:     { name: "Policy",                 short: "Policy",     icon: "📜", color: "#1f9d78" },
+  wild:       { name: "Wild Card",              short: "Wild Card",  icon: "🃏", color: "#8b5cf6" },
 };
+const WHEEL = Object.keys(MATCH_CATS);
+const SPIN_MS = 4200;      // wheel animation length
+const SPIN_AUTO_MS = 20000; // if the spinner doesn't spin in time, the wheel spins itself
 function isMatch() { return !!(game && game.ctx && game.ctx.type === "match"); }
+const normQ = s => String(s).trim().toLowerCase();
 function matchPool(cat) {
   const ok = q => q && q.q && q.a && Array.isArray(q.w) && q.w.length === 3;
-  const own = ((window.MATCH_Q || {})[cat] || []).filter(ok);
-  // History Facts = the duel-only facts set plus all 500 era questions from the American History map.
-  // (Skip any question that's also in the Presidents or Elections sets so a match never asks it twice.)
-  if (cat === "facts") {
-    const elsewhere = new Set(["presidents", "elections"].flatMap(c => ((window.MATCH_Q || {})[c] || []).map(q => q.q.trim().toLowerCase())));
-    return own.concat(PERIODS.flatMap(p => poolFor({ type: "history", id: p.id }))).filter(q => !elsewhere.has(q.q.trim().toLowerCase()));
-  }
-  return own;
+  const M = window.MATCH_Q || {};
+  if (cat === "states") // all 600 state questions, tagged with their state so the question has context
+    return STATES.flatMap(s => ((window.STATE_Q || {})[s.code] || []).filter(ok).map(q => ({ ...q, tag: s.name })));
+  if (cat === "wild") // random U.S. facts: the general facts sets plus the 500 era questions
+    return (M.facts || []).concat(PERIODS.flatMap(p => poolFor({ type: "history", id: p.id }))).filter(ok);
+  return (M[cat] || []).filter(ok);
 }
 function startMatch() {
   if (!canStart()) return;
-  const picks = {};
-  for (const cat of Object.keys(MATCH_CATS)) {
-    const need = MATCH_ROUNDS.filter(c => c === cat).length * Q_PER_ROUND, pool = matchPool(cat);
-    if (pool.length < need) { toast(`Questions for ${MATCH_CATS[cat].name} aren't available yet.`); return; }
-    picks[cat] = pickFresh({ type: "match", id: cat }, pool, need);
-  }
-  const qs = MATCH_ROUNDS.flatMap((cat, r) => picks[cat].splice(0, Q_PER_ROUND).map(q => ({
-    era: `${MATCH_CATS[cat].icon} Round ${r + 1} of ${MATCH_ROUNDS.length} · ${MATCH_CATS[cat].name}`,
-    q: q.q, a: q.a, f: q.f || "", opts: shuffle([q.a, ...q.w]),
-  })));
-  launch(qs, { type: "match", id: "match" });
+  for (const cat of WHEEL) if (matchPool(cat).length < Q_PER_ROUND * NUM_ROUNDS) { toast(`Questions for ${MATCH_CATS[cat].name} aren't available yet.`); return; }
+  // Questions are drawn round by round, after each wheel spin.
+  launch(Array(NUM_ROUNDS * Q_PER_ROUND).fill(null), { type: "match", id: "match" });
 }
+// Draw 4 questions for round r from a category, never repeating a question already used in this game.
+function drawRound(r, cat) {
+  const pool = matchPool(cat).filter(q => !game.usedQ.has(normQ(q.q)));
+  const picks = pickFresh({ type: "match", id: cat }, pool, Q_PER_ROUND);
+  picks.forEach(q => game.usedQ.add(normQ(q.q)));
+  return picks.map(q => ({
+    era: `${MATCH_CATS[cat].icon} Round ${r + 1} of ${NUM_ROUNDS} · ${MATCH_CATS[cat].name}${q.tag ? " — " + q.tag : ""}`,
+    q: q.q, a: q.a, f: q.f || "", opts: shuffle([q.a, ...q.w]),
+  }));
+}
+
+// ---------- THE WHEEL ----------
+// Players take turns spinning: round 1 = player 1, round 2 = player 2, … (skipping anyone who left).
+function spinnerFor(r) {
+  for (let k = 0; k < game.n; k++) { const p = (r + k) % game.n; if (!game.gone[p]) return p; }
+  return 0;
+}
+function canISpin(p) { return mode === "pvp" ? p <= 1 : mode === "cpu" ? p === 0 : p === localPlayer(); }
+let wheelRot = 0, spinTimer = null, spinAutoTimer = null;
+function buildWheel() {
+  const cx = 150, cy = 150, R = 140, seg = 360 / WHEEL.length;
+  const pt = (deg, r) => { const a = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+  const slices = WHEEL.map((id, k) => {
+    const [x0, y0] = pt(k * seg, R), [x1, y1] = pt((k + 1) * seg, R), mid = k * seg + seg / 2, [tx, ty] = pt(mid, R * 0.62), c = MATCH_CATS[id];
+    return `<path d="M${cx},${cy} L${x0},${y0} A${R},${R} 0 0,1 ${x1},${y1} Z" fill="${c.color}" stroke="#0b1226" stroke-width="3"/>` +
+      // Labels on the lower half are turned the other way so they never read upside down.
+      `<g transform="translate(${tx},${ty}) rotate(${mid > 90 && mid < 270 ? mid + 180 : mid})"><text text-anchor="middle" y="-6" font-size="24">${c.icon}</text>` +
+      `<text text-anchor="middle" y="16" font-size="13" font-weight="800" fill="#fff">${c.short}</text></g>`;
+  }).join("");
+  $("wheelSvg").innerHTML = `<g id="wheelSpin" style="transform-origin:150px 150px">${slices}` +
+    `<circle cx="150" cy="150" r="26" fill="#0b1226" stroke="#fff" stroke-width="3"/><text x="150" y="158" text-anchor="middle" font-size="22">★</text></g>`;
+  $("wheelSpin").style.transform = `rotate(${wheelRot}deg)`;
+}
+// Start-of-round wheel: show whose turn it is.
+function beginSpin() {
+  const r = Math.floor(game.i / Q_PER_ROUND);
+  game.phase = "spin";
+  game.spinRound = r;
+  $("game").classList.remove("asking");
+  $("nextRow").classList.remove("show");
+  buildWheel();
+  $("wheelTitle").textContent = `Round ${r + 1} of ${NUM_ROUNDS}`;
+  $("wheelResult").textContent = "";
+  $("wheelModal").classList.add("show");
+  renderSpinPrompt();
+  clearTimeout(spinAutoTimer);
+  // The referee (host / this device) spins automatically for the computer, or if the spinner takes too long.
+  const referee = mode !== "online" || isHost;
+  if (referee) {
+    const p = spinnerFor(r);
+    if (mode === "cpu" && p === 1) spinAutoTimer = setTimeout(() => requestSpin(1), 1400);
+    else spinAutoTimer = setTimeout(() => { if (game && game.phase === "spin" && game.spinRound === r) doSpin(r); }, SPIN_AUTO_MS);
+  }
+}
+function renderSpinPrompt() {
+  if (!game || game.phase !== "spin") return;
+  const p = spinnerFor(game.spinRound), name = game.names[p];
+  const mine = canISpin(p);
+  $("wheelWho").innerHTML = `${av(p, 30)} <span>${mine && mode !== "pvp" ? "Your turn to spin!" : `${esc(name)}'s turn to spin!`}</span>`;
+  $("spinBtn").style.display = mine ? "" : "none";
+  $("spinBtn").disabled = false;
+  $("spinBtn").innerHTML = mode === "pvp" ? `🎡 ${esc(name)}, spin!` : "🎡 Spin the wheel";
+  $("wheelWait").textContent = mine ? "" : mode === "cpu" ? "The computer is spinning…" : `Waiting for ${name} to spin…`;
+}
+// The spinner presses Spin. Guests ask the host (the referee) to spin; everyone else spins locally.
+function requestSpin(p) {
+  if (!game || game.phase !== "spin" || game.spinning) return;
+  const r = game.spinRound;
+  if (spinnerFor(r) !== p) return;
+  $("spinBtn").disabled = true;
+  if (mode === "online" && !isHost) { send({ t: "spin", r }); return; }
+  doSpin(r);
+}
+// Referee: pick the category, draw the round's questions, tell everyone, then animate.
+function doSpin(r) {
+  if (!game || game.phase !== "spin" || game.spinRound !== r || game.spinning) return;
+  clearTimeout(spinAutoTimer);
+  const cat = WHEEL[Math.floor(Math.random() * WHEEL.length)];
+  const qs = drawRound(r, cat);
+  if (mode === "online" && isHost) send({ t: "round", r, cat, qs });
+  applyRound(r, cat, qs);
+}
+// Everyone: place the round's questions, spin the wheel to the category, then start the round.
+function applyRound(r, cat, qs) {
+  if (!game || game.phase !== "spin" || game.spinRound !== r || game.spinning) return;
+  game.spinning = true;
+  qs.forEach((q, j) => game.qs[r * Q_PER_ROUND + j] = q);
+  $("spinBtn").style.display = "none";
+  $("wheelWait").textContent = "";
+  const k = WHEEL.indexOf(cat), seg = 360 / WHEEL.length, center = k * seg + seg / 2;
+  const base = wheelRot - (wheelRot % 360);
+  wheelRot = base + 360 * 5 + ((360 - center) % 360) + (Math.random() * 30 - 15); // land inside the slice, not dead center
+  const spinEl = $("wheelSpin");
+  spinEl.style.transition = `transform ${SPIN_MS}ms cubic-bezier(.17,.67,.21,1)`;
+  spinEl.style.transform = `rotate(${wheelRot}deg)`;
+  clearTimeout(spinTimer);
+  spinTimer = setTimeout(() => {
+    const c = MATCH_CATS[cat];
+    $("wheelResult").innerHTML = `<span style="color:${c.color}">${c.icon}</span> ${c.name}!`;
+    spinTimer = setTimeout(() => {
+      if (!game || game.spinRound !== r) return;
+      game.spinning = false;
+      $("wheelModal").classList.remove("show");
+      showQuestion();
+    }, 1400);
+  }, SPIN_MS);
+}
+$("spinBtn").onclick = () => { if (game) requestSpin(mode === "pvp" || mode === "cpu" ? spinnerFor(game.spinRound) : localPlayer()); };
 const firstFree = p => WAGERS.find(w => !game.used[p].has(w));
 function renderWagers(p) {
-  const box = $("wg" + (p + 1));
+  const box = pel(p, "wg");
+  if (!box) return;
   if (!isMatch() || !interactive(p)) { box.innerHTML = ""; return; }
   const keys = mode === "pvp" && p === 1 ? P2_WKEYS : P1_WKEYS;
   box.innerHTML = '<span class="wlabel">Your bet</span>' + WAGERS.map((w, j) => {
@@ -1224,16 +1484,20 @@ function setWager(p, w) {
 
 function launch(qs, ctx) {
   stopTimers();
-  const n1 = myName();
-  let n2;
-  if (mode === "solo") n2 = "";
-  else if (mode === "pvp") n2 = $("p2name").value.trim().slice(0, 20) || "Player 2";
-  else if (mode === "cpu") n2 = `Computer (${diff})`;
-  else n2 = opponentName || "Guest";
-  const avatars = [myAvatar(), mode === "online" ? opponentAvatar : null];
-  if (mode === "online") send({ t: "start", names: [n1, n2], qs, ctx, avatars });
+  let names, avatars;
+  if (mode === "solo") { names = [myName()]; avatars = [myAvatar()]; }
+  else if (mode === "pvp") { names = [myName(), $("p2name").value.trim().slice(0, 20) || "Player 2"]; avatars = [myAvatar(), null]; }
+  else if (mode === "cpu") { names = [myName(), `Computer (${diff})`]; avatars = [myAvatar(), null]; }
+  else {
+    // Online: host is player 0, then each guest in the order they joined.
+    const ready = guests.filter(g => g.name && g.c.open).slice(0, MAX_PLAYERS - 1);
+    guests.forEach(g => g.pi = null);
+    names = [myName(), ...ready.map(g => g.name)];
+    avatars = [myAvatar(), ...ready.map(g => g.avatar)];
+    ready.forEach((g, j) => { g.pi = j + 1; g.c.send({ t: "start", names, avatars, qs, ctx, you: j + 1 }); });
+  }
   closeSheet();
-  beginGame([n1, n2], qs, ctx, avatars);
+  beginGame(names, qs, ctx, avatars);
   nextQuestion();
 }
 
@@ -1257,41 +1521,77 @@ function pickFresh(ctx, pool, count = QUESTIONS_PER_DUEL) {
 }
 
 function beginGame(names, qs, ctx, avatars = []) {
+  const n = names.length, fill = v => Array.from({ length: n }, () => (typeof v === "function" ? v() : v));
   $("game").classList.toggle("solo", mode === "solo");
   $("results").classList.toggle("solo", mode === "solo");
   $("game").classList.toggle("match", !!ctx && ctx.type === "match");
-  game = { names, qs, ctx, avatars, scores: [0, 0], right: [0, 0], i: -1, picks: [null, null], times: [0, 0], done: [false, false], phase: "idle", history: [],
-    wager: [null, null], used: [new Set(), new Set()] }; // match bets: current bet and bets already used this round
+  $("game").classList.toggle("online", mode === "online");
+  game = { n, names, qs, ctx, avatars, i: -1, phase: "idle", history: [],
+    scores: fill(0), right: fill(0), picks: fill(null), times: fill(0), done: fill(false), gone: fill(false), sel: fill(null),
+    wager: fill(null), used: fill(() => new Set()), // match bets: current bet and bets already used this round
+    usedQ: new Set(), spinRound: -1, spinning: false }; // match: questions already asked this game; wheel state
   const you = p => (mode === "online" && p === me) ? " (you)" : "";
-  $("g1name").innerHTML = av(0, 24) + esc(names[0]); $("pp1name").innerHTML = av(0, 28) + esc(names[0] + you(0));
-  $("g2name").innerHTML = esc(names[1]) + " " + av(1, 24); $("pp2name").innerHTML = av(1, 28) + esc(names[1] + you(1));
+
+  // Scoreboard: classic left/right layout for 1–2 players, a row of chips for 3–4.
+  const sb = $("scorebar");
+  if (n <= 2) {
+    sb.className = "scorebar";
+    sb.innerHTML = `<div class="pscore p1"><span id="sn-0"></span><span class="pts" id="sc-0">0</span></div><div class="qcount" id="qcount"></div>` +
+      (n === 2 ? `<div class="pscore p2"><span id="sn-1"></span><span class="pts" id="sc-1">0</span></div>` : "");
+    $("sn-0").innerHTML = av(0, 24) + esc(names[0]);
+    if (n === 2) $("sn-1").innerHTML = esc(names[1]) + " " + av(1, 24);
+  } else {
+    sb.className = "scorebar multi";
+    sb.innerHTML = `<div class="qcount" id="qcount"></div><div class="score-chips">` + names.map((nm, p) =>
+      `<div class="pscore pc ${p === me ? "me" : ""}" style="--pc:${PCOLORS[p]}"><span>${av(p, 22)}${esc(nm + you(p))}</span><span class="pts" id="sc-${p}">0</span></div>`).join("") + "</div>";
+  }
+  // Answer panels: panel 1 = me (or player 1 on a shared screen); panel 2 = player 2 on a shared screen / vs computer.
+  $("pp1name").innerHTML = ""; $("pp2name").innerHTML = "";
+  for (let p = 0; p < n; p++) { const nm = panelNo(p) ? $("pp" + panelNo(p) + "name") : null; if (nm) nm.innerHTML = av(p, 28) + esc(names[p] + you(p)); }
+  $("panel1").style.setProperty("--p1", mode === "online" ? PCOLORS[me] : "");
+  // Online: every other player is a compact card.
+  $("rivals").innerHTML = mode !== "online" ? "" : names.map((nm, p) => p === me ? "" :
+    `<div class="rival" id="rv-${p}" style="--pc:${PCOLORS[p]}">${av(p, 38)}<div class="rinfo"><b>${esc(nm)}</b><span class="status" id="rs-${p}">Thinking…</span><div class="rival-ans" id="ra-${p}"></div></div></div>`).join("");
   updateScores();
   show("game");
 }
 
 // ---------- ROUND ----------
-function updateScores() { $("g1score").textContent = game.scores[0]; $("g2score").textContent = game.scores[1]; }
-function setStatus(p, text, cls) { const s = $("st" + (p + 1)); s.textContent = text; s.className = "status " + cls; }
+function updateScores() { for (let p = 0; p < game.n; p++) { const el = $("sc-" + p); if (el) el.textContent = game.scores[p]; } }
+function setStatus(p, text, cls) {
+  const s = panelNo(p) ? $("st" + panelNo(p)) : $("rs-" + p);
+  if (s) { s.textContent = text; s.className = "status " + cls; }
+}
 
 function nextQuestion() {
   stopTimers();
   game.i++;
   if (game.i >= game.qs.length) return endDuel();
-  const q = game.qs[game.i];
-  game.picks = [null, null]; game.times = [0, 0]; game.done = [false, mode === "solo"]; // solo: no second player to wait for
+  // Trivia Match: each round starts with a wheel spin that picks the category and draws its questions.
+  if (isMatch() && game.i % Q_PER_ROUND === 0 && !game.qs[game.i]) return beginSpin();
+  showQuestion();
+}
+function showQuestion() {
+  stopTimers();
+  const q = game.qs[game.i], n = game.n;
+  for (let p = 0; p < n; p++) { game.picks[p] = null; game.times[p] = 0; game.done[p] = game.gone[p]; game.sel[p] = null; }
   if (isMatch()) {
     const r = Math.floor(game.i / Q_PER_ROUND), qi = game.i % Q_PER_ROUND;
-    if (qi === 0) { game.used = [new Set(), new Set()]; toast(`Round ${r + 1}: ${MATCH_CATS[MATCH_ROUNDS[r]].icon} ${MATCH_CATS[MATCH_ROUNDS[r]].name}`); }
-    game.wager = [0, 1].map(p => interactive(p) ? firstFree(p) : null); // start on the lowest bet still available
-    $("qcount").textContent = `Round ${r + 1}/${MATCH_ROUNDS.length} · Q${qi + 1}/${Q_PER_ROUND}`;
-  } else
-  $("qcount").textContent = `Question ${game.i + 1} / ${game.qs.length}`;
+    if (qi === 0) game.used = game.used.map(() => new Set()); // fresh set of bets each round
+    for (let p = 0; p < n; p++) game.wager[p] = interactive(p) ? firstFree(p) : null; // start on the lowest bet still available
+    $("qcount").textContent = `Round ${r + 1}/${NUM_ROUNDS} · Q${qi + 1}/${Q_PER_ROUND}`;
+  } else $("qcount").textContent = `Question ${game.i + 1} / ${game.qs.length}`;
   $("era").textContent = q.era || "";
   $("question").textContent = q.q;
   $("fact").classList.remove("show");
   $("nextRow").classList.remove("show");
-  [0, 1].forEach(p => {
-    const box = $("opts" + (p + 1));
+  for (let p = 0; p < n; p++) {
+    if (!panelNo(p)) { // opponent card
+      setStatus(p, game.gone[p] ? "🚪 Left" : "Thinking…", game.gone[p] ? "wrong" : "");
+      const ra = $("ra-" + p); if (ra) ra.textContent = "";
+      continue;
+    }
+    const box = pel(p, "opts");
     box.innerHTML = "";
     q.opts.forEach((o, k) => {
       const b = document.createElement("button");
@@ -1302,17 +1602,17 @@ function nextQuestion() {
       box.appendChild(b);
     });
     // On a shared screen, hide both picks. Otherwise, only hide the opponent's pick.
-    $("panel" + (p + 1)).classList.toggle("hidden-opts", mode === "pvp" || !interactive(p));
-    $("panel" + (p + 1)).classList.toggle("local", mode !== "pvp" && interactive(p));
-    $("panel" + (p + 1)).classList.toggle("remote", !interactive(p));
+    const panel = pel(p, "panel");
+    panel.classList.toggle("hidden-opts", mode === "pvp" || !interactive(p));
+    panel.classList.toggle("local", mode !== "pvp" && interactive(p));
+    panel.classList.toggle("remote", !interactive(p));
     setStatus(p, "Thinking…", "");
     renderWagers(p);
-    const lb = $("lock" + (p + 1));
+    const lb = pel(p, "lock");
     lb.classList.toggle("show", isMatch() && interactive(p));
     lb.disabled = true; // enabled once an answer is picked
     lb.innerHTML = "Lock in ✓" + (mode === "pvp" ? `<kbd>${p === 0 ? "G" : "H"}</kbd>` : "<kbd>Enter</kbd>");
-  });
-  game.sel = [null, null];
+  }
 
   game.start = performance.now();
   game.phase = "asking";
@@ -1344,14 +1644,16 @@ function tick() {
   clearInterval(timerId); timerId = null;
   if (mode !== "online") {
     // Match: whatever answer each player has picked becomes final when time runs out.
-    if (isMatch()) [0, 1].forEach(p => { if (interactive(p) && !game.done[p]) lockIn(p, game.sel[p], 0); });
+    if (isMatch()) for (let p = 0; p < game.n; p++) if (interactive(p) && !game.done[p]) lockIn(p, game.sel[p], 0);
     return endRound();
   }
-  // Online: lock in my picked answer (match) or "no answer"; the host then waits briefly for the guest's answer to arrive.
+  // Online: lock in my picked answer (match) or "no answer"; the host then waits briefly for the guests' answers to arrive.
   if (!game.done[me]) lockIn(me, isMatch() ? game.sel[me] : null, 0);
   if (isHost && game.phase === "asking") {
-    graceTimeout = setTimeout(() => { if (game && game.phase === "asking") lockIn(1, null, 0); }, GRACE_MS);
-    setStatus(1, game.done[1] ? "🔒 Locked in" : "Waiting…", game.done[1] ? "locked" : "");
+    graceTimeout = setTimeout(() => {
+      if (game && game.phase === "asking") for (let p = 0; p < game.n; p++) if (!game.done[p]) lockIn(p, null, 0);
+    }, GRACE_MS);
+    for (let p = 0; p < game.n; p++) if (!game.done[p]) setStatus(p, "Waiting…", "");
   }
 }
 
@@ -1361,21 +1663,21 @@ function answer(p, k) {
   if (!game || game.phase !== "asking" || !interactive(p) || game.done[p]) return;
   if (!isMatch()) return lockIn(p, k, remaining());
   game.sel[p] = k;
-  [...$("opts" + (p + 1)).children].forEach((b, j) => b.classList.toggle("picked", j === k));
-  $("lock" + (p + 1)).disabled = false;
+  [...pel(p, "opts").children].forEach((b, j) => b.classList.toggle("picked", j === k));
+  pel(p, "lock").disabled = false;
   setStatus(p, "✏️ Answer picked", "");
 }
 function lockSelected(p) {
   if (!game || game.phase !== "asking" || !isMatch() || !interactive(p) || game.done[p] || game.sel[p] === null) return;
   lockIn(p, game.sel[p], remaining());
 }
-$("lock1").onclick = () => lockSelected(0);
+$("lock1").onclick = () => lockSelected(mode === "online" ? me : 0);
 $("lock2").onclick = () => lockSelected(1);
 
 function lockIn(p, k, time, bet) {
-  if (!game || game.phase !== "asking" || game.done[p]) return;
+  if (!game || game.phase !== "asking" || game.done[p] || p >= game.n) return;
   game.done[p] = true; game.picks[p] = k; game.times[p] = time;
-  $("lock" + (p + 1)).disabled = true;
+  const lb = pel(p, "lock"); if (lb) lb.disabled = true;
   if (isMatch()) {
     // Lock the bet: use the one passed in (computer / online guest) or the one selected; it must be unused this round.
     let w = bet ?? game.wager[p];
@@ -1383,14 +1685,14 @@ function lockIn(p, k, time, bet) {
     game.wager[p] = w; game.used[p].add(w);
     renderWagers(p);
   }
-  const btns = $("opts" + (p + 1)).children;
-  if (k !== null) btns[k].classList.add("chosen");
-  [...btns].forEach(b => b.disabled = true);
-  setStatus(p, (k === null ? "⏰ Out of time" : "🔒 Locked in") + (isMatch() && interactive(p) && mode !== "pvp" ? ` · bet ${game.wager[p]}` : ""), "locked");
+  const box = pel(p, "opts");
+  if (box) { const btns = box.children; if (k !== null) btns[k].classList.add("chosen"); [...btns].forEach(b => b.disabled = true); }
+  if (game.gone[p]) setStatus(p, "🚪 Left", "wrong");
+  else setStatus(p, (k === null ? "⏰ Out of time" : "🔒 Locked in") + (isMatch() && interactive(p) && mode !== "pvp" ? ` · bet ${game.wager[p]}` : ""), "locked");
   if (mode === "online" && !isHost && p === me) send({ t: "pick", i: game.i, k, time, w: game.wager[p] });
-  if (mode === "online" && isHost && p === me) send({ t: "locked", i: game.i }); // status only; the answer stays secret
+  if (mode === "online" && isHost) send({ t: "locked", i: game.i, p }); // status only; answers stay secret until the reveal
   const iReferee = mode !== "online" || isHost;
-  if (iReferee && game.done[0] && game.done[1]) endRound();
+  if (iReferee && game.done.every(Boolean)) endRound();
 }
 
 function endRound() {
@@ -1399,40 +1701,39 @@ function endRound() {
   $("game").classList.remove("asking");
   $("lock1").classList.remove("show"); $("lock2").classList.remove("show");
   stopTimers();
-  if (isMatch()) [0, 1].forEach(p => {
+  const n = game.n;
+  if (isMatch()) for (let p = 0; p < n; p++) {
     // A player who ran out of time still uses up the bet they had selected.
     let w = game.wager[p];
     if (!WAGERS.includes(w)) w = firstFree(p) ?? 1;
     game.wager[p] = w; game.used[p].add(w);
     renderWagers(p);
-  });
+  }
   if (mode === "online" && isHost) send({ t: "reveal", i: game.i, picks: game.picks, times: game.times, wagers: game.wager });
   const q = game.qs[game.i];
   const correctIdx = q.opts.indexOf(q.a);
-  const gains = [0, 0];
-  [0, 1].forEach(p => {
-    if (isMatch()) {
-      $("panel" + (p + 1)).classList.remove("hidden-opts");
-      const btns = $("opts" + (p + 1)).children;
+  const gains = Array(n).fill(0);
+  for (let p = 0; p < n; p++) {
+    const pk = game.picks[p], right = pk === correctIdx;
+    if (right) {
+      gains[p] = isMatch() ? game.wager[p] : 100 + Math.floor(game.times[p]) * 10;
+      game.scores[p] += gains[p]; game.right[p]++;
+    }
+    const box = pel(p, "opts");
+    if (box) { // full answer panel
+      pel(p, "panel").classList.remove("hidden-opts");
+      const btns = box.children;
       [...btns].forEach(b => { b.disabled = true; b.classList.remove("chosen", "picked"); });
       btns[correctIdx].classList.add("correct");
-      const pk = game.picks[p], w = game.wager[p];
-      if (pk === correctIdx) { gains[p] = w; game.scores[p] += w; game.right[p]++; setStatus(p, `✔ +${w}`, "right"); }
-      else { if (pk !== null) btns[pk].classList.add("incorrect"); setStatus(p, `${pk === null ? "⏰" : "✘"} 0 (bet ${w})`, "wrong"); }
-      return;
+      if (pk !== null && !right) btns[pk].classList.add("incorrect");
+    } else { // opponent card: show what they picked
+      const ra = $("ra-" + p);
+      if (ra) ra.textContent = game.gone[p] ? "" : pk === null ? "No answer" : `Picked: ${q.opts[pk]}` + (isMatch() ? ` · bet ${game.wager[p]}` : "");
     }
-    $("panel" + (p + 1)).classList.remove("hidden-opts");
-    const btns = $("opts" + (p + 1)).children;
-    [...btns].forEach(b => { b.disabled = true; b.classList.remove("chosen", "picked"); });
-    btns[correctIdx].classList.add("correct");
-    const pk = game.picks[p];
-    if (pk === null) { setStatus(p, "⏰ Time's up", "wrong"); }
-    else if (pk === correctIdx) {
-      gains[p] = 100 + Math.floor(game.times[p]) * 10;
-      game.scores[p] += gains[p]; game.right[p]++;
-      setStatus(p, `✔ +${gains[p]}`, "right");
-    } else { btns[pk].classList.add("incorrect"); setStatus(p, "✘ +0", "wrong"); }
-  });
+    if (game.gone[p]) setStatus(p, "🚪 Left", "wrong");
+    else if (isMatch()) setStatus(p, right ? `✔ +${gains[p]}` : `${pk === null ? "⏰" : "✘"} 0 (bet ${game.wager[p]})`, right ? "right" : "wrong");
+    else setStatus(p, right ? `✔ +${gains[p]}` : pk === null ? "⏰ Time's up" : "✘ +0", right ? "right" : "wrong");
+  }
   game.history.push({ q: q.q, a: q.a, picks: game.picks.map(pk => pk === null ? null : q.opts[pk]), gains, wagers: isMatch() ? [...game.wager] : null });
   updateScores();
   $("fact").innerHTML = `<b>Answer: ${esc(q.a)}.</b> ${esc(q.f || "")}`;
@@ -1453,15 +1754,15 @@ function advance() {
 $("nextBtn").onclick = advance;
 
 function endDuel() {
-  stopTimers();
+  stopTimers(); stopWheel();
   game.phase = "done";
-  const [s1, s2] = game.scores;
-  const [n1, n2] = game.names;
-  const winner = s1 === s2 ? -1 : (s1 > s2 ? 0 : 1);
+  const n = game.n, names = game.names, scores = game.scores;
+  const top = Math.max(...scores), leaders = scores.map((s, p) => s === top ? p : -1).filter(p => p >= 0);
+  const winner = n > 1 && leaders.length === 1 ? leaders[0] : -1;
   // Each device records only its own human players.
-  if (mode === "solo") recordResult(n1, s1, false);
-  else if (mode === "pvp") { recordResult(n1, s1, winner === 0); recordResult(n2, s2, winner === 1); }
-  else { const lp = localPlayer(); recordResult(game.names[lp], game.scores[lp], winner === lp); }
+  if (mode === "solo") recordResult(names[0], scores[0], false);
+  else if (mode === "pvp") { recordResult(names[0], scores[0], winner === 0); recordResult(names[1], scores[1], winner === 1); }
+  else { const lp = localPlayer(); recordResult(names[lp], scores[lp], winner === lp); }
   const lost = winner !== -1 && mode !== "pvp" && winner !== localPlayer();
   if (mode === "solo") {
     const r = game.right[0];
@@ -1470,19 +1771,26 @@ function endDuel() {
     $("winnerText").textContent = r >= 9 ? "Outstanding!" : r >= PASS ? "Well done!" : "Keep going!";
   } else {
     $("resultsTitle").innerHTML = isMatch() ? "Match <span>Over</span>" : "Duel <span>Over</span>";
-    $("trophy").textContent = winner === -1 ? "🤝" : lost ? (mode === "cpu" ? "🤖" : "🥈") : "🏆";
-    $("winnerText").textContent = winner === -1 ? "It's a tie!" : `${game.names[winner]} wins!`;
+    const tiedWithMe = leaders.includes(localPlayer());
+    $("trophy").textContent = winner === -1 ? (mode === "online" && !tiedWithMe ? "🥈" : "🤝") : lost ? (mode === "cpu" ? "🤖" : "🥈") : "🏆";
+    $("winnerText").textContent = winner !== -1 ? `${names[winner]} wins!`
+      : leaders.length === n ? "It's a tie!" : `It's a tie between ${leaders.map(p => names[p]).join(" and ")}!`;
   }
-  $("r1name").innerHTML = av(0, 48) + esc(n1); $("r1score").textContent = s1; $("r1right").textContent = `${game.right[0]} / ${game.qs.length} correct`;
-  $("r2name").innerHTML = av(1, 48) + esc(n2); $("r2score").textContent = s2; $("r2right").textContent = `${game.right[1]} / ${game.qs.length} correct`;
+  // Score boxes: by player for 1–2 players, ranked with medals for 3–4.
+  const order = n > 2 ? [...Array(n).keys()].sort((a, b) => scores[b] - scores[a] || a - b) : [...Array(n).keys()];
+  const medal = p => n > 2 ? ["🥇", "🥈", "🥉", "4th"][scores.filter(s => s > scores[p]).length] : "";
+  $("finalBoxes").innerHTML = order.map(p =>
+    `<div class="${n > 2 && scores[p] === top ? "lead" : ""}" style="--pc:${n > 2 || mode === "online" ? PCOLORS[p] : (p === 0 ? "var(--p1)" : "var(--p2)")}">` +
+    (medal(p) ? `<span class="medal">${medal(p)}</span>` : "") +
+    `${av(p, 48)}${esc(names[p])}${mode === "online" && p === me ? " (you)" : ""}${game.gone[p] ? " · left" : ""}<b>${scores[p]}</b><span>${game.right[p]} / ${game.qs.length} correct</span></div>`).join("");
 
-  // Progress: on a shared screen the best player's score counts; otherwise this device's player.
+  // Progress (solo eras/states) or match summary.
   const ctx = game.ctx;
   let banner = "", passed = false, nextCtx = null;
   if (ctx && ctx.type === "match") {
     // Match summary: points per round for each player.
-    const per = [0, 1].map(p => MATCH_ROUNDS.map((_, r) => game.history.slice(r * Q_PER_ROUND, (r + 1) * Q_PER_ROUND).reduce((s, h) => s + h.gains[p], 0)));
-    banner = `Round scores: ${n1} ${per[0].join(" · ")}  |  ${n2} ${per[1].join(" · ")}`;
+    banner = "Round scores — " + names.map((nm, p) => `${nm}: ` + Array.from({ length: NUM_ROUNDS }, (_, r) =>
+      game.history.slice(r * Q_PER_ROUND, (r + 1) * Q_PER_ROUND).reduce((s, h) => s + (h.gains[p] || 0), 0)).join(" · ")).join("  |  ");
     passed = winner !== -1 && !lost;
   } else if (ctx) {
     const correct = game.right[localPlayer()]; // progress belongs to the signed-in player (Player 1 on a shared screen)
@@ -1516,9 +1824,10 @@ function endDuel() {
   $("backBtn").style.display = canControl && ctx && ctx.type !== "match" ? "" : "none";
   $("backBtn").textContent = ctx && ctx.type === "states" ? "All states" : "Map";
   $("backBtn").onclick = ctx && ctx.type === "states" ? showStates : showMap;
-  $("rematchNote").textContent = isGuest() ? "The host picks what's next. You'll jump in automatically." : "";
+  $("rematchNote").textContent = isGuest() ? "The host picks what's next. You'll jump in automatically."
+    : mode === "online" ? "Rematch starts a new match with everyone still in the room." : "";
 
-  $("reviewTable").innerHTML = `<tr><th>Question</th><th>Answer</th><th>${esc(n1)}</th><th>${esc(n2)}</th></tr>` +
+  $("reviewTable").innerHTML = `<tr><th>Question</th><th>Answer</th>${names.map(nm => `<th>${esc(nm)}</th>`).join("")}</tr>` +
     game.history.map(h => `<tr><td>${esc(h.q)}</td><td><b>${esc(h.a)}</b></td>` +
       h.picks.map((pk, p) => `<td class="${h.gains[p] ? "ok" : "bad"}">${pk === null ? "—" : esc(pk)}${h.gains[p] ? " (+" + h.gains[p] + ")" : h.wagers ? ` (bet ${h.wagers[p]})` : ""}</td>`).join("") + "</tr>").join("");
   show("results");
@@ -1531,6 +1840,7 @@ document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT") return;
   const k = e.key.toLowerCase();
   if (game.phase === "reveal" && (k === " " || k === "enter")) { e.preventDefault(); advance(); return; }
+  if (game.phase === "spin" && (k === " " || k === "enter")) { e.preventDefault(); if ($("spinBtn").style.display !== "none" && !$("spinBtn").disabled) $("spinBtn").click(); return; }
   if (game.phase !== "asking") return;
   if (isMatch()) { // bet keys and lock-in keys
     if (mode === "pvp" && P2_WKEYS.includes(k)) return setWager(1, WAGERS[P2_WKEYS.indexOf(k)]);
