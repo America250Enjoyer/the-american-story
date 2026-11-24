@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#060b1c">
+<title>The American Story — American History Trivia Duels</title>
+<!-- PeerJS: peer-to-peer connections for online duels (free public signaling server) -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root {
+    --bg: #060b1c;            /* deep Old Glory navy */
+    --surface: rgba(255, 255, 255, .045);
+    --surface-2: rgba(255, 255, 255, .08);
+    --border: rgba(255, 255, 255, .09);
+    --border-strong: rgba(255, 255, 255, .18);
+    --text: #eef1f8;
+    --muted: #8f98b0;
+    --accent: #3d6bff;        /* blue */
+    --accent-2: #6b8cff;
+    --red: #e63946;
+    --red-dark: #b3122a;
+    --flag: linear-gradient(90deg, #6b8cff 0%, #ffffff 50%, #ff4d5e 100%);
+    --p1: #4f8cff;
+    --p2: #ff4d5e;
+    --good: #2ee6a6;
+    --bad: #ff4d5e;
+    --gold: #ffc53d;
+    --radius: 18px;
+  }
+  /* Thin red-and-white stripe ribbon across the top of the page */
+  body::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0; height: 5px; z-index: 10;
+    background: repeating-linear-gradient(90deg, var(--red) 0 28px, #fff 28px 56px); opacity: .9;
+  }
+  .stars { text-align: center; color: rgba(255, 255, 255, .85); letter-spacing: 10px; font-size: .9rem; margin-top: 6px; text-shadow: 0 0 10px rgba(107, 140, 255, .8); }
+  .stars span { color: var(--red); text-shadow: 0 0 10px rgba(230, 57, 70, .8); }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font-family: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(900px 500px at 10% -10%, rgba(61, 107, 255, .28), transparent 60%),
+      radial-gradient(800px 500px at 110% 10%, rgba(230, 57, 70, .18), transparent 60%),
+      radial-gradient(700px 600px at 50% 120%, rgba(61, 107, 255, .16), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+  .screen { display: none; max-width: 1000px; margin: 0 auto; padding: 32px 18px; }
+  .screen.active { display: block; animation: fadeUp .35s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  h1 {
+    text-align: center; font-size: 3rem; font-weight: 800; letter-spacing: -1.5px; margin: 8px 0 0;
+    background: linear-gradient(90deg, #fff 0%, #c9d4ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 span { background: linear-gradient(90deg, #ff4d5e, #ff8a95); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tagline { color: var(--muted); text-align: center; margin: 10px 0 28px; font-size: 1.05rem; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px; margin-bottom: 18px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+  }
+  .card h2 { margin: 0 0 14px; font-size: 1.15rem; font-weight: 700; letter-spacing: -.2px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row > * { flex: 1 1 260px; }
+  label { font-weight: 600; font-size: .85rem; display: block; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  input[type=text] {
+    width: 100%; padding: 12px 14px; font-size: 1rem; color: var(--text);
+    background: rgba(0, 0, 0, .3); border: 1px solid var(--border); border-radius: 12px; transition: border-color .15s, box-shadow .15s;
+  }
+  input[type=text]::placeholder { color: #5b6378; }
+  input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(61, 107, 255, .2); }
+
+  .modes { display: flex; gap: 6px; margin: 0 0 20px; padding: 5px; background: rgba(0, 0, 0, .3); border: 1px solid var(--border); border-radius: 14px; }
+  .mode-btn {
+    flex: 1; padding: 11px 10px; border: none; background: transparent; border-radius: 10px; cursor: pointer;
+    font: inherit; font-size: .95rem; font-weight: 600; color: var(--muted); transition: background .2s, color .2s;
+  }
+  .mode-btn:hover { color: var(--text); }
+  .mode-btn.selected { background: linear-gradient(135deg, rgba(79, 140, 255, .28), rgba(61, 107, 255, .28)); color: #fff; box-shadow: inset 0 0 0 1px rgba(61, 107, 255, .6), 0 4px 18px rgba(61, 107, 255, .25); }
+
+  .btn {
+    padding: 14px 30px; font: inherit; font-size: 1.05rem; font-weight: 700; border: none; border-radius: 12px; cursor: pointer; color: #fff;
+    background: linear-gradient(135deg, var(--red), var(--red-dark));
+    box-shadow: 0 8px 24px rgba(230, 57, 70, .35); transition: transform .12s, box-shadow .2s, filter .2s;
+  }
+  .btn:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 12px 30px rgba(230, 57, 70, .5); }
+  .btn:active { transform: translateY(0); }
+  .btn.secondary { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .btn.secondary:hover { background: rgba(255, 255, 255, .12); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .center { text-align: center; }
+  .hint { font-size: .9rem; color: var(--muted); line-height: 1.55; }
+  .hint b { color: var(--text); }
+  kbd {
+    display: inline-block; min-width: 22px; text-align: center; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .78rem; font-weight: 600;
+    color: var(--text); background: rgba(255, 255, 255, .07); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .8px; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .empty { color: var(--muted); font-style: italic; }
+
+  /* Online lobby */
+  .online-grid { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+  .online-col { flex: 1 1 260px; background: rgba(0, 0, 0, .25); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .online-col h3 { margin: 0 0 4px; font-size: 1rem; }
+  .online-col .hint { margin: 0 0 12px; }
+  .online-col .btn { font-size: .95rem; padding: 11px 18px; }
+  #joinCode { text-transform: uppercase; letter-spacing: 5px; font-weight: 700; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+  .online-status { margin-top: 16px; font-weight: 600; text-align: center; min-height: 1.4em; color: var(--text); }
+  .room-code {
+    display: block; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 2.6rem; letter-spacing: 12px; font-weight: 800; margin: 8px 0;
+    background: var(--flag); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  /* Game */
+  .scorebar { display: flex; align-items: stretch; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .pscore {
+    font-size: .85rem; font-weight: 600; padding: 10px 16px; border-radius: 14px; min-width: 190px; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border); position: relative; overflow: hidden;
+  }
+  .pscore::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; }
+  .pscore .pts { font-size: 1.9rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+  .pscore.p1 { box-shadow: 0 0 30px rgba(79, 140, 255, .12); }
+  .pscore.p1::before { background: var(--p1); box-shadow: 0 0 12px var(--p1); }
+  .pscore.p2 { text-align: right; box-shadow: 0 0 30px rgba(255, 77, 94, .12); }
+  .pscore.p2::before { inset: 0 0 0 auto; background: var(--p2); box-shadow: 0 0 12px var(--p2); }
+  .qcount { align-self: center; font-weight: 600; color: var(--muted); font-size: .9rem; letter-spacing: .4px; text-transform: uppercase; }
+
+  .timer-wrap { background: rgba(255, 255, 255, .06); height: 6px; border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+  .timer-bar { height: 100%; width: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow: 0 0 14px rgba(61, 107, 255, .7); }
+  .timer-bar.danger { background: linear-gradient(90deg, var(--red-dark), var(--bad)); box-shadow: 0 0 16px rgba(230, 57, 70, .9); }
+  .timer-num { text-align: center; font-size: 1.9rem; font-weight: 800; margin-bottom: 12px; font-variant-numeric: tabular-nums; color: #fff; }
+
+  .era { text-align: center; color: #ff6b78; font-weight: 700; font-size: .75rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  .question { font-size: 1.6rem; font-weight: 700; text-align: center; margin: 0; line-height: 1.3; letter-spacing: -.3px; }
+
+  .panels { display: flex; gap: 16px; flex-wrap: wrap; }
+  .panel {
+    flex: 1 1 300px; padding: 16px; border-radius: var(--radius); position: relative;
+    background: var(--surface); border: 1px solid var(--border); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .panel::before { content: ""; position: absolute; left: 18px; right: 18px; top: -1px; height: 2px; border-radius: 2px; }
+  .panel.p1::before { background: var(--p1); box-shadow: 0 0 14px var(--p1); }
+  .panel.p2::before { background: var(--p2); box-shadow: 0 0 14px var(--p2); }
+  .panel h3 { margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; font-size: 1rem; gap: 8px; }
+  .status { font-size: .75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .07); color: var(--muted); white-space: nowrap; }
+  .status.locked { background: rgba(61, 107, 255, .18); color: #b3c6ff; }
+  .status.right { background: rgba(46, 230, 166, .15); color: var(--good); }
+  .status.wrong { background: rgba(255, 77, 94, .15); color: var(--bad); }
+
+  .opt {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 13px 14px; margin-bottom: 8px;
+    font: inherit; font-size: 1rem; color: var(--text); background: rgba(255, 255, 255, .035);
+    border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: background .15s, border-color .15s, transform .12s;
+  }
+  .opt:last-child { margin-bottom: 0; }
+  .opt:hover:not(:disabled) { background: rgba(255, 255, 255, .08); border-color: var(--border-strong); transform: translateY(-1px); }
+  .opt:disabled { cursor: default; opacity: .55; }
+  .opt kbd { flex-shrink: 0; }
+  .opt.chosen { opacity: 1; border-color: var(--accent); background: rgba(61, 107, 255, .16); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .opt.correct { opacity: 1; border-color: var(--good); background: rgba(46, 230, 166, .12); color: #fff; font-weight: 700; box-shadow: 0 0 18px rgba(46, 230, 166, .18); }
+  .opt.incorrect { opacity: 1; border-color: var(--bad); background: rgba(255, 77, 94, .12); }
+  .panel.hidden-opts .opt.chosen { opacity: .55; background: rgba(255, 255, 255, .035); border-color: var(--border); box-shadow: none; } /* hide pick until reveal */
+
+  .fact {
+    margin-top: 16px; padding: 14px 16px; border-radius: 12px; display: none; line-height: 1.5; color: #d9deea;
+    background: linear-gradient(90deg, rgba(255, 197, 61, .12), rgba(255, 197, 61, .03)); border: 1px solid rgba(255, 197, 61, .25);
+  }
+  .fact b { color: var(--gold); }
+  .fact.show { display: block; animation: fadeUp .3s ease both; }
+  .next-row { text-align: center; margin-top: 18px; display: none; }
+  .next-row.show { display: block; }
+  .next-row .hint { color: var(--muted) !important; }
+
+  /* Results */
+  .trophy { font-size: 4rem; text-align: center; filter: drop-shadow(0 8px 24px rgba(255, 197, 61, .35)); }
+  .winner { font-size: 2.2rem; font-weight: 800; text-align: center; margin: 6px 0; letter-spacing: -.8px; }
+  .final { display: flex; justify-content: center; gap: 16px; margin: 20px 0; text-align: center; flex-wrap: wrap; }
+  .final > div { min-width: 160px; padding: 14px 18px; border-radius: 14px; background: rgba(0, 0, 0, .25); border: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+  .final > div:first-child { box-shadow: inset 0 2px 0 var(--p1); }
+  .final > div:last-child { box-shadow: inset 0 2px 0 var(--p2); }
+  .final div b { display: block; font-size: 2.2rem; color: #fff; font-variant-numeric: tabular-nums; margin: 2px 0; }
+  #rematchNote { margin-top: 12px; }
+  .review { font-size: .9rem; }
+  .review td { color: #c9cfdc; vertical-align: top; }
+  .review td b { color: #fff; }
+  .review td.ok { color: var(--good); font-weight: 600; }
+  .review td.bad { color: var(--bad); font-weight: 600; }
+  .review-wrap { overflow-x: auto; }
+
+  /* Touch & small screens */
+  .opt, .btn, .mode-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .pscore > span:first-child { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (hover: none) and (pointer: coarse) { .opt kbd, #pressHint { display: none !important; } }
+  @media (max-width: 600px) {
+    h1 { font-size: 2.2rem; }
+    .screen { padding: 18px 12px; }
+    .card { padding: 16px; }
+    .modes { flex-direction: column; }
+    .scorebar { gap: 8px; }
+    .pscore { min-width: 0; flex: 1 1 0; font-size: .8rem; padding: 8px 12px; }
+    .pscore .pts { font-size: 1.4rem; }
+    .qcount { font-size: .75rem; text-align: center; flex-shrink: 0; }
+    .timer-num { font-size: 1.4rem; }
+    .question { font-size: 1.25rem; }
+    .opt { padding: 14px 12px; }
+    .panels { gap: 10px; }
+    .panel { flex-basis: 100%; }
+    .panel.local { order: -1; }                              /* your buttons always on top */
+    #game.asking .panel.remote [id^="opts"] { display: none; } /* opponent shrinks to a status line */
+    #game.asking .panel.remote h3 { margin: 0; }
+    .final > div { min-width: 0; flex: 1; }
+    .review { font-size: .8rem; }
+  }
+
+  /* ---------- Game picker, map, states ---------- */
+  .step { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; margin-right: 8px; font-size: .85rem; background: var(--red); color: #fff; vertical-align: 2px; }
+  .game-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .game-card {
+    position: relative; overflow: hidden; text-align: left; padding: 22px; border-radius: 16px; cursor: pointer; font: inherit; color: var(--text);
+    border: 1px solid var(--border); transition: transform .15s, border-color .15s, box-shadow .2s;
+  }
+  .game-card.history { background: linear-gradient(145deg, rgba(61, 107, 255, .22), rgba(61, 107, 255, .04)); }
+  .game-card.states { background: linear-gradient(145deg, rgba(230, 57, 70, .22), rgba(230, 57, 70, .04)); }
+  .game-card:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--border-strong); box-shadow: 0 14px 34px rgba(0, 0, 0, .4); }
+  .game-card:disabled { opacity: .45; cursor: not-allowed; }
+  .gc-icon { font-size: 2.2rem; display: block; margin-bottom: 8px; }
+  .gc-title { font-size: 1.25rem; font-weight: 800; display: block; letter-spacing: -.3px; }
+  .gc-desc { color: #b8c0d4; font-size: .9rem; display: block; margin: 6px 0 12px; line-height: 1.45; }
+  .gc-progress { display: inline-block; font-size: .78rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: rgba(0, 0, 0, .3); border: 1px solid var(--border); }
+  #guestNote { margin: 12px 0 0; }
+
+  .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .topbar h2 { flex: 1; margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -.5px; }
+  .back-btn { font: inherit; font-weight: 600; font-size: .9rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+  .back-btn:hover { background: rgba(255, 255, 255, .12); }
+  .count-pill { font-size: .8rem; font-weight: 700; color: var(--gold); background: rgba(255, 197, 61, .1); border: 1px solid rgba(255, 197, 61, .3); padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+  .screen-sub { color: var(--muted); margin: 0 0 14px; font-size: .95rem; }
+
+  /* Snake map */
+  .snake { position: relative; max-width: 620px; margin: 0 auto 120px; }
+  .snake svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .road { fill: none; stroke: rgba(255, 255, 255, .07); stroke-width: 26; stroke-linecap: round; }
+  .road-dash { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 2; stroke-dasharray: 8 10; }
+  .road-done { fill: none; stroke: url(#roadGrad); stroke-width: 8; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(107, 140, 255, .8)); }
+  .node {
+    position: absolute; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 1.7rem; cursor: pointer;
+    border: 3px solid; padding: 0; transition: transform .15s; z-index: 2;
+  }
+  .node:hover { transform: scale(1.08); }
+  .node.locked { background: #141a2e; border-color: rgba(255, 255, 255, .12); filter: grayscale(1); opacity: .55; }
+  .node.open { background: radial-gradient(circle at 30% 30%, #ff6b78, var(--red-dark)); border-color: #fff; animation: pulse 1.8s infinite; }
+  .node.cleared { background: radial-gradient(circle at 30% 30%, #7d9bff, #1f3fbf); border-color: #d6e0ff; box-shadow: 0 0 18px rgba(107, 140, 255, .6); }
+  .node.selected { outline: 3px solid var(--gold); outline-offset: 4px; }
+  .node .badge { position: absolute; bottom: -6px; right: -8px; font-size: .68rem; font-weight: 800; color: #fff; background: #0b1226; border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 6px; }
+  .node.cleared .badge { background: var(--good); color: #062a1e; border-color: transparent; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, .6); } 70% { box-shadow: 0 0 0 18px rgba(230, 57, 70, 0); } 100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); } }
+  .node-label { position: absolute; transform: translateY(-50%); font-size: .82rem; color: var(--muted); line-height: 1.3; z-index: 1; }
+  .node-label.left { text-align: right; }
+  .node-label small { display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: 1.5px; color: #ff6b78; font-weight: 700; }
+  .node-label b { display: block; color: #fff; font-size: .98rem; }
+  .node-label.locked b { color: var(--muted); }
+  .map-end { position: absolute; transform: translate(-50%, -50%); font-size: .72rem; font-weight: 800; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+
+  /* States picker */
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+  .chip { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: .85rem; font-weight: 600; }
+  .chip.selected { background: rgba(61, 107, 255, .22); border-color: rgba(61, 107, 255, .6); color: #fff; }
+  .state-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 120px; }
+  .state-tile {
+    position: relative; text-align: left; padding: 12px 12px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font: inherit; cursor: pointer; transition: transform .12s, border-color .15s, background .15s;
+  }
+  .state-tile:hover { transform: translateY(-2px); border-color: var(--border-strong); background: rgba(255, 255, 255, .07); }
+  .state-tile.mastered { border-color: rgba(255, 197, 61, .45); background: linear-gradient(145deg, rgba(255, 197, 61, .1), rgba(255, 197, 61, .02)); }
+  .state-tile.selected { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .st-abbr { display: block; font-size: 1.35rem; font-weight: 800; letter-spacing: 1px; }
+  .st-name { display: block; font-size: .82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-best { position: absolute; top: 10px; right: 10px; font-size: .72rem; font-weight: 700; color: var(--muted); }
+  .state-tile.mastered .st-best { color: var(--gold); }
+
+  /* Bottom sheet */
+  .sheet {
+    position: fixed; left: 50%; bottom: 14px; z-index: 30; width: min(560px, calc(100% - 24px)); padding: 18px;
+    transform: translate(-50%, 160%); transition: transform .3s cubic-bezier(.2, .8, .2, 1);
+    background: rgba(12, 19, 44, .94); border: 1px solid var(--border-strong); border-radius: 18px;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+  }
+  .sheet.show { transform: translate(-50%, 0); }
+  .sheet-head { display: flex; gap: 14px; align-items: center; padding-right: 26px; }
+  .sheet-icon { font-size: 2.3rem; }
+  .sheet h3 { margin: 0; font-size: 1.2rem; }
+  .sheet-sub { color: var(--muted); font-size: .85rem; }
+  .sheet-blurb { color: #c9cfdc; margin: 12px 0; line-height: 1.5; font-size: .95rem; }
+  .sheet-meta { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: .85rem; margin-bottom: 12px; }
+  .sheet-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; line-height: 1; }
+  .sheet .btn { width: 100%; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* Results progress banner + toast */
+  .progress-banner { margin: 4px auto 14px; text-align: center; padding: 12px 16px; border-radius: 12px; font-weight: 700; max-width: 560px; }
+  .progress-banner.pass { background: rgba(46, 230, 166, .12); color: var(--good); border: 1px solid rgba(46, 230, 166, .3); }
+  .progress-banner.fail { background: rgba(255, 197, 61, .1); color: var(--gold); border: 1px solid rgba(255, 197, 61, .3); }
+  .progress-banner:empty { display: none; }
+  .result-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .toast {
+    position: fixed; top: 18px; left: 50%; z-index: 40; transform: translate(-50%, -180%); transition: transform .3s;
+    background: rgba(12, 19, 44, .96); border: 1px solid var(--border-strong); color: var(--text); padding: 12px 18px; border-radius: 12px;
+    font-weight: 600; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); max-width: calc(100% - 24px); text-align: center;
+  }
+  .toast.show { transform: translate(-50%, 0); }
+  #leaveBtn { margin-top: 10px; }
+
+  /* Player profiles */
+  .player-bar { display: flex; justify-content: center; align-items: center; gap: 10px; margin: -12px 0 22px; flex-wrap: wrap; }
+  .player-chip {
+    display: inline-flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; border-radius: 999px; cursor: pointer; font: inherit; color: var(--text);
+    background: rgba(61, 107, 255, .15); border: 1px solid rgba(61, 107, 255, .45); font-size: .95rem;
+  }
+  .player-chip:hover { background: rgba(61, 107, 255, .25); }
+  .chip-edit { color: var(--muted); font-size: .85rem; }
+
+  /* President avatars */
+  .avatar {
+    --s: 40px; position: relative; display: inline-grid; place-items: center; width: var(--s); height: var(--s); border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    background: linear-gradient(135deg, #2b3d85, #8a2a3c); border: 2px solid rgba(255, 255, 255, .35); vertical-align: middle;
+    color: #fff; font-weight: 800; font-size: calc(var(--s) * .4); line-height: 1;
+  }
+  .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+  .pres-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 10px; max-height: 270px; overflow-y: auto; padding: 6px 4px; }
+  .pres-opt { position: relative; border: none; background: none; padding: 0; cursor: pointer; border-radius: 50%; aspect-ratio: 1; transition: transform .12s; }
+  .pres-opt:hover { transform: scale(1.08); }
+  .pres-opt .avatar { --s: 100%; width: 100%; height: 100%; }
+  .pres-opt.selected .avatar { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 197, 61, .5); }
+  .pres-opt .num { position: absolute; bottom: -3px; right: -3px; font-size: .6rem; font-weight: 800; color: #fff; background: #0b1226; border: 1px solid var(--border-strong); border-radius: 999px; padding: 1px 5px; }
+  .pres-picked { margin: 8px 0 0; font-weight: 600; font-size: .92rem; min-height: 1.3em; }
+  .pres-picked span { color: var(--muted); font-weight: 400; }
+  .pscore .avatar, .panel h3 .avatar { margin-right: 8px; }
+  .panel h3 > span:first-child { display: inline-flex; align-items: center; }
+  .final .avatar { display: grid; margin: 0 auto 6px; }
+  .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: 16px; background: rgba(3, 6, 15, .7); backdrop-filter: blur(4px); }
+  .modal-backdrop.show { display: grid; }
+  .modal { position: relative; width: min(560px, 100%); margin: 0; }
+  .welcome-card { max-width: 560px; margin-left: auto; margin-right: auto; }
+  .welcome-row { display: flex; gap: 10px; }
+  .welcome-row input { flex: 1; }
+  #userError { color: var(--bad); min-height: 1.2em; margin: 8px 0 0; }
+  #savedNote { margin: -4px 0 12px; }
+  .player-list { display: grid; gap: 8px; }
+  .player-item {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text); font: inherit; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .player-item:hover { border-color: var(--border-strong); background: rgba(255, 255, 255, .07); }
+  .player-item b { font-size: 1.05rem; display: inline-flex; align-items: center; gap: 10px; }
+  .player-item span { color: var(--muted); font-size: .82rem; text-align: right; }
+  @media (max-width: 600px) { .welcome-row { flex-direction: column; } }
+
+  /* Solo mode: one player, no opponent panel */
+  #game.solo .pscore.p2, #game.solo #panel2 { display: none; }
+  #game.solo .panel { flex-basis: 100%; }
+  #results.solo .final > div:last-child { display: none; }
+  #results.solo .review th:nth-child(4), #results.solo .review td:nth-child(4) { display: none; }
+
+  @media (max-width: 600px) {
+    .game-cards { grid-template-columns: 1fr; }
+    .state-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .topbar h2 { font-size: 1.2rem; }
+    .node-label { font-size: .75rem; }
+    .node-label b { font-size: .88rem; }
+    .result-actions .btn { flex: 1 1 140px; padding: 13px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<!-- WELCOME / PLAYER SELECT -->
+<section id="welcome" class="screen">
+  <div class="stars">★ ★ ★ <span>★</span> ★ ★ ★</div>
+  <h1>The American <span>Story</span></h1>
+  <p class="tagline">Create your player so your progress is saved every time you play.</p>
+  <div class="card welcome-card">
+    <h2>Create a username</h2>
+    <div class="welcome-row">
+      <input type="text" id="newUser" maxlength="20" placeholder="e.g. HistoryBuff76" autocomplete="off">
+      <button class="btn" id="createUserBtn">Let's go ▶</button>
+    </div>
+    <p class="hint" id="userError"></p>
+    <label style="margin-top:6px">Pick your president avatar</label>
+    <div class="pres-grid" id="presGrid"></div>
+    <p class="pres-picked" id="presPicked"></p>
+    <p class="hint">Your unlocked eras, state stars and the questions you've already seen are saved under this name in this browser.</p>
+  </div>
+  <div class="card welcome-card" id="existingBox">
+    <h2>Or continue as</h2>
+    <div class="player-list" id="playerList"></div>
+  </div>
+</section>
+
+<!-- HOME -->
+<section id="home" class="screen">
+  <div class="stars">★ ★ ★ <span>★</span> ★ ★ ★</div>
+  <h1>The American <span>Story</span></h1>
+  <p class="tagline">Duel a friend in American history trivia. 10 questions, 10 seconds each, no time to look it up.</p>
+  <div class="player-bar">
+    <button class="player-chip" id="changeAvatarBtn" title="Change your avatar"><span id="playerAv"></span><b id="playerName"></b><span class="chip-edit">✎</span></button>
+    <button class="back-btn" id="switchBtn">Switch player</button>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">1</span>Choose how to play</h2>
+    <div class="modes">
+      <button class="mode-btn" data-mode="solo">Solo</button>
+      <button class="mode-btn selected" data-mode="pvp">Two players (same screen)</button>
+      <button class="mode-btn" data-mode="cpu">Vs. computer</button>
+      <button class="mode-btn" data-mode="online">Online duel</button>
+    </div>
+    <div class="row">
+      <div id="p2box">
+        <label for="p2name">Player 2 name (you're Player 1)</label>
+        <input type="text" id="p2name" maxlength="20" placeholder="Player 2">
+      </div>
+      <div id="cpubox" style="display:none">
+        <label>Computer difficulty</label>
+        <div class="modes" style="margin:0">
+          <button class="mode-btn diff" data-diff="easy">Easy</button>
+          <button class="mode-btn diff selected" data-diff="medium">Medium</button>
+          <button class="mode-btn diff" data-diff="hard">Hard</button>
+        </div>
+      </div>
+    </div>
+    <div id="onlinebox" style="display:none">
+      <div class="online-grid">
+        <div class="online-col">
+          <h3>Host a duel</h3>
+          <p class="hint">Get a room code to share. You'll pick the game once they join.</p>
+          <button class="btn secondary" id="createBtn">Create room</button>
+        </div>
+        <div class="online-col">
+          <h3>Join a duel</h3>
+          <p class="hint">Enter the code your opponent shared with you.</p>
+          <div style="display:flex; gap:8px">
+            <input type="text" id="joinCode" maxlength="5" placeholder="ABCDE" autocomplete="off">
+            <button class="btn secondary" id="joinBtn">Join</button>
+          </div>
+        </div>
+      </div>
+      <div class="online-status" id="onlineStatus"></div>
+      <div class="center"><button class="back-btn" id="leaveBtn" style="display:none">Leave room</button></div>
+    </div>
+    <p class="hint" id="keyhint"></p>
+    <p class="hint"><b>Scoring:</b> correct answer = 100 pts + 10 pts for every second left. Wrong or no answer = 0.
+      <span id="winRule">The duel winner earns a win and a +250 bonus on the leaderboard.</span></p>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">2</span>Choose a game</h2>
+    <div class="game-cards">
+      <button class="game-card history" id="historyCard">
+        <span class="gc-icon">🗺️</span>
+        <span class="gc-title">American History</span>
+        <span class="gc-desc">Travel the trail from Jamestown to today. 10 eras, 10 questions each. Score 7/10 to unlock the next era.</span>
+        <span class="gc-progress" id="historyProgress"></span>
+      </button>
+      <button class="game-card states" id="statesCard">
+        <span class="gc-icon">⭐</span>
+        <span class="gc-title">States History</span>
+        <span class="gc-desc">Pick any of the 50 states and take on 10 questions about its story. Score 7/10 to earn its gold star.</span>
+        <span class="gc-progress" id="statesProgressHome"></span>
+      </button>
+    </div>
+    <p class="hint center" id="guestNote" style="display:none">You're the guest. The host picks the game, and the duel starts automatically.</p>
+  </div>
+
+  <div class="card">
+    <h2>Leaderboard</h2>
+    <div id="leaderboard"></div>
+  </div>
+</section>
+
+<!-- AMERICAN HISTORY MAP -->
+<section id="map" class="screen">
+  <div class="topbar">
+    <button class="back-btn" data-home>← Menu</button>
+    <h2>American History</h2>
+    <span class="count-pill" id="mapProgress"></span>
+  </div>
+  <p class="screen-sub">Follow the trail through time. Tap an era to play. Score 7/10 to unlock the next one.</p>
+  <div class="snake" id="snake"></div>
+</section>
+
+<!-- STATES PICKER -->
+<section id="states" class="screen">
+  <div class="topbar">
+    <button class="back-btn" data-home>← Menu</button>
+    <h2>States History</h2>
+    <span class="count-pill" id="statesProgress"></span>
+  </div>
+  <p class="screen-sub">Pick a state. Score 7/10 to earn its gold star ⭐</p>
+  <input type="text" id="stateSearch" placeholder="Search states…" autocomplete="off">
+  <div class="filters" id="regionChips"></div>
+  <div class="state-grid" id="stateGrid"></div>
+</section>
+
+<!-- GAME -->
+<section id="game" class="screen">
+  <div class="scorebar">
+    <div class="pscore p1"><span id="g1name">P1</span><span class="pts" id="g1score">0</span></div>
+    <div class="qcount" id="qcount">Question 1 / 10</div>
+    <div class="pscore p2"><span id="g2name">P2</span><span class="pts" id="g2score">0</span></div>
+  </div>
+  <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
+  <div class="timer-num" id="timerNum">10</div>
+
+  <div class="card">
+    <div class="era" id="era"></div>
+    <p class="question" id="question"></p>
+    <div class="fact" id="fact"></div>
+  </div>
+
+  <div class="panels">
+    <div class="panel p1 hidden-opts" id="panel1">
+      <h3><span id="pp1name">Player 1</span><span class="status" id="st1">Thinking…</span></h3>
+      <div id="opts1"></div>
+    </div>
+    <div class="panel p2 hidden-opts" id="panel2">
+      <h3><span id="pp2name">Player 2</span><span class="status" id="st2">Thinking…</span></h3>
+      <div id="opts2"></div>
+    </div>
+  </div>
+  <div class="next-row" id="nextRow"><button class="btn" id="nextBtn">Next question ▶</button>
+    <p class="hint" id="pressHint">or press <kbd>Space</kbd></p>
+    <p class="hint" style="font-size:1.05rem" id="waitHost">Waiting for the host to continue…</p></div>
+</section>
+
+<!-- RESULTS -->
+<section id="results" class="screen">
+  <h1 id="resultsTitle">Duel <span>Over</span></h1>
+  <div class="card">
+    <div class="trophy" id="trophy">🏆</div>
+    <div class="winner" id="winnerText"></div>
+    <div class="final">
+      <div><span id="r1name"></span><b id="r1score"></b><span id="r1right"></span></div>
+      <div><span id="r2name"></span><b id="r2score"></b><span id="r2right"></span></div>
+    </div>
+    <div class="progress-banner" id="progressBanner"></div>
+    <p class="hint center" id="savedNote"></p>
+    <div class="result-actions">
+      <button class="btn" id="nextEraBtn">Next era ▶</button>
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn secondary" id="backBtn">Map</button>
+      <button class="btn secondary" data-home>Main menu</button>
+    </div>
+    <p class="hint center" id="rematchNote"></p>
+  </div>
+  <div class="card">
+    <h2>Review &amp; learn</h2>
+    <div class="review-wrap"><table class="review" id="reviewTable"></table></div>
+  </div>
+</section>
+
+<!-- Bottom sheet for a chosen era / state -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="false">
+  <button class="sheet-close" id="sheetClose" aria-label="Close">×</button>
+  <div class="sheet-head">
+    <div class="sheet-icon" id="sheetIcon"></div>
+    <div><h3 id="sheetTitle"></h3><div class="sheet-sub" id="sheetSub"></div></div>
+  </div>
+  <p class="sheet-blurb" id="sheetBlurb"></p>
+  <div class="sheet-meta"><span id="sheetBest"></span><span id="sheetVs"></span></div>
+  <button class="btn" id="sheetStart">Start duel ▶</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Change-avatar dialog -->
+<div class="modal-backdrop" id="avatarModal">
+  <div class="modal card">
+    <button class="sheet-close" id="avatarClose" aria-label="Close">×</button>
+    <h2>Choose your president</h2>
+    <div class="pres-grid" id="presGridModal"></div>
+    <p class="pres-picked" id="presPickedModal"></p>
+    <button class="btn" id="avatarSave" style="width:100%">Save avatar</button>
+  </div>
+</div>
+
+<!-- Question banks -->
+<script src="data/presidents.js"></script>
+<script src="data/history-1.js"></script>
+<script src="data/history-2.js"></script>
+<script src="data/history-3.js"></script>
+<script src="data/history-4.js"></script>
+<script src="data/history-5.js"></script>
+<script src="data/history-6.js"></script>
+<script src="data/history-7.js"></script>
+<script src="data/states-1.js"></script>
+<script src="data/states-2.js"></script>
+<script src="data/states-3.js"></script>
+<script src="data/states-4.js"></script>
+<script src="data/states-5.js"></script>
+
+<script>
+// ---------- CONTENT ----------
+const PERIODS = [
+  { id: "colonial",    icon: "⛵", name: "Colonial America",            years: "1607–1763", blurb: "Jamestown, the Pilgrims, the thirteen colonies, and the French and Indian War." },
+  { id: "revolution",  icon: "🔔", name: "The American Revolution",     years: "1763–1783", blurb: "Taxes, tea and protest turn into a war for independence." },
+  { id: "newnation",   icon: "📜", name: "A New Nation",                years: "1783–1815", blurb: "The Constitution, the Bill of Rights, the first presidents, the Louisiana Purchase and the War of 1812." },
+  { id: "expansion",   icon: "🧭", name: "Westward Expansion & Reform", years: "1815–1860", blurb: "Manifest Destiny, the Trail of Tears, the Gold Rush, abolition, and the fight for women's rights." },
+  { id: "civilwar",    icon: "⚔️", name: "The Civil War",               years: "1861–1865", blurb: "A nation divided, from Fort Sumter to Appomattox, and the end of slavery." },
+  { id: "gilded",      icon: "🚂", name: "Reconstruction & Gilded Age", years: "1865–1900", blurb: "Rebuilding the South, railroads, inventors, industrial giants and a wave of immigrants." },
+  { id: "progressive", icon: "🏭", name: "Progressive Era & WWI",       years: "1900–1919", blurb: "Reformers, trust-busters, the first airplanes, and America's entry into the Great War." },
+  { id: "wwii",        icon: "✈️", name: "Roaring '20s to WWII",        years: "1920–1945", blurb: "Jazz and Prohibition, the Great Depression and New Deal, and World War II." },
+  { id: "coldwar",     icon: "🚀", name: "Cold War & Civil Rights",     years: "1945–1991", blurb: "The space race, the civil rights movement, Vietnam, and the fall of the Berlin Wall." },
+  { id: "modern",      icon: "💻", name: "Modern America",              years: "1991–Today", blurb: "The internet age, September 11, and the history that has shaped America since the Cold War." },
+];
+const STATES = [
+  ["AL","Alabama",1819,"South"],["AK","Alaska",1959,"West"],["AZ","Arizona",1912,"West"],["AR","Arkansas",1836,"South"],
+  ["CA","California",1850,"West"],["CO","Colorado",1876,"West"],["CT","Connecticut",1788,"Northeast"],["DE","Delaware",1787,"South"],
+  ["FL","Florida",1845,"South"],["GA","Georgia",1788,"South"],["HI","Hawaii",1959,"West"],["ID","Idaho",1890,"West"],
+  ["IL","Illinois",1818,"Midwest"],["IN","Indiana",1816,"Midwest"],["IA","Iowa",1846,"Midwest"],["KS","Kansas",1861,"Midwest"],
+  ["KY","Kentucky",1792,"South"],["LA","Louisiana",1812,"South"],["ME","Maine",1820,"Northeast"],["MD","Maryland",1788,"South"],
+  ["MA","Massachusetts",1788,"Northeast"],["MI","Michigan",1837,"Midwest"],["MN","Minnesota",1858,"Midwest"],["MS","Mississippi",1817,"South"],
+  ["MO","Missouri",1821,"Midwest"],["MT","Montana",1889,"West"],["NE","Nebraska",1867,"Midwest"],["NV","Nevada",1864,"West"],
+  ["NH","New Hampshire",1788,"Northeast"],["NJ","New Jersey",1787,"Northeast"],["NM","New Mexico",1912,"West"],["NY","New York",1788,"Northeast"],
+  ["NC","North Carolina",1789,"South"],["ND","North Dakota",1889,"Midwest"],["OH","Ohio",1803,"Midwest"],["OK","Oklahoma",1907,"South"],
+  ["OR","Oregon",1859,"West"],["PA","Pennsylvania",1787,"Northeast"],["RI","Rhode Island",1790,"Northeast"],["SC","South Carolina",1788,"South"],
+  ["SD","South Dakota",1889,"Midwest"],["TN","Tennessee",1796,"South"],["TX","Texas",1845,"South"],["UT","Utah",1896,"West"],
+  ["VT","Vermont",1791,"Northeast"],["VA","Virginia",1788,"South"],["WA","Washington",1889,"West"],["WV","West Virginia",1863,"South"],
+  ["WI","Wisconsin",1848,"Midwest"],["WY","Wyoming",1890,"West"],
+].map(([code, name, year, region]) => ({ code, name, year, region }));
+const REGIONS = ["All", "Northeast", "South", "Midwest", "West"];
+
+const QUESTIONS_PER_DUEL = 10;
+const PASS = 7;          // correct answers needed to clear an era / star a state
+const SECONDS = 10;
+const WIN_BONUS = 250;
+const P1_KEYS = ["a", "s", "d", "f"];
+const P2_KEYS = ["j", "k", "l", ";"];
+const NUM_KEYS = ["1", "2", "3", "4"];
+const CPU_SKILL = { easy: { acc: 0.45, min: 4, max: 9.5 }, medium: { acc: 0.65, min: 3, max: 8 }, hard: { acc: 0.85, min: 1.5, max: 6 } };
+const ROOM_PREFIX = "history-duel-room-";
+const GRACE_MS = 3000; // host waits this long after its timer for the guest's answer to arrive
+
+// ---------- STATE ----------
+let mode = "pvp", diff = "medium";
+let game = null;
+let timerId = null, cpuTimeout = null, graceTimeout = null;
+let stateRegion = "All";
+// online: host is always player index 0, guest is player index 1. The host is the referee.
+let peer = null, conn = null, isHost = false, me = 0, opponentName = "", opponentAvatar = null;
+
+const $ = id => document.getElementById(id);
+const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const validIdx = k => (Number.isInteger(k) && k >= 0 && k < 4) ? k : null;
+const clampTime = t => Math.min(SECONDS, Math.max(0, Number(t) || 0));
+
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id)); window.scrollTo(0, 0); }
+function stopTimers() { clearInterval(timerId); clearTimeout(cpuTimeout); clearTimeout(graceTimeout); timerId = null; }
+function localPlayer() { return mode === "online" ? me : 0; }
+function interactive(p) { return mode === "pvp" || p === localPlayer(); }
+function keysFor(p) { return mode === "pvp" && p === 1 ? P2_KEYS : P1_KEYS; }
+function remaining() { return Math.max(0, SECONDS - (performance.now() - game.start) / 1000); }
+function isGuest() { return mode === "online" && !isHost; }
+function connected() { return !!(conn && conn.open); }
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2800); }
+
+// ---------- PLAYER PROFILES (saved in this browser) ----------
+// Each username has its own progress (best score per era/state) and list of questions already seen.
+const STORE_KEY = "americanStoryPlayers";
+function loadStore() {
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; return { current: s.current || null, players: s.players || {} }; }
+  catch { return { current: null, players: {} }; }
+}
+function saveStore(s) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+  catch { toast("⚠️ Couldn't save progress. Your browser storage may be full or disabled."); }
+}
+function currentPlayer() { const s = loadStore(); return (s.current && s.players[s.current]) || null; }
+function updatePlayer(fn) {
+  const s = loadStore(), p = s.players[s.current];
+  if (!p) return;
+  p.progress = p.progress || { history: {}, states: {} };
+  p.progress.history = p.progress.history || {}; p.progress.states = p.progress.states || {};
+  p.seen = p.seen || {};
+  fn(p); p.lastPlayed = Date.now(); saveStore(s);
+}
+// ---------- PRESIDENT AVATARS ----------
+const presById = id => (window.PRESIDENTS || []).find(p => p.id === id) || null;
+const initials = name => { const w = name.split(/\s+/); return (w[0][0] + w[w.length - 1][0]).toUpperCase(); };
+// Renders a round avatar. If the portrait can't load (offline), the president's initials show instead.
+function avatarHTML(id, size, fallback = "👤") {
+  const p = presById(id);
+  if (!p) return `<span class="avatar" style="--s:${size}px">${fallback}</span>`;
+  return `<span class="avatar" style="--s:${size}px" title="#${p.n} ${esc(p.name)}"><span aria-hidden="true">${initials(p.name)}</span><img src="${p.img}" alt="${esc(p.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></span>`;
+}
+function renderPresGrid(gridId, pickedId, selected, onPick) {
+  $(gridId).innerHTML = (window.PRESIDENTS || []).map(p =>
+    `<button class="pres-opt ${p.id === selected ? "selected" : ""}" data-id="${p.id}" title="#${p.n} ${esc(p.name)}">${avatarHTML(p.id, 56)}<span class="num">${p.n}</span></button>`).join("");
+  const label = id => { const p = presById(id); $(pickedId).innerHTML = p ? `${esc(p.name)} <span>· ${p.n.includes("&") ? "Presidents" : "President"} #${p.n}</span>` : ""; };
+  label(selected);
+  $(gridId).querySelectorAll(".pres-opt").forEach(b => b.onclick = () => {
+    $(gridId).querySelectorAll(".pres-opt").forEach(x => x.classList.toggle("selected", x === b));
+    label(b.dataset.id); onPick(b.dataset.id);
+  });
+}
+let newAvatar = null, modalAvatar = null;
+function openAvatarModal() {
+  const p = currentPlayer(); if (!p) return;
+  modalAvatar = p.avatar || null;
+  renderPresGrid("presGridModal", "presPickedModal", modalAvatar, id => modalAvatar = id);
+  $("avatarModal").classList.add("show");
+  const sel = $("presGridModal").querySelector(".selected"); if (sel) sel.scrollIntoView({ block: "center" });
+}
+$("changeAvatarBtn").onclick = openAvatarModal;
+$("avatarClose").onclick = () => $("avatarModal").classList.remove("show");
+$("avatarModal").onclick = e => { if (e.target === $("avatarModal")) $("avatarModal").classList.remove("show"); };
+$("avatarSave").onclick = () => {
+  if (modalAvatar) { updatePlayer(p => p.avatar = modalAvatar); toast(`New avatar: ${presById(modalAvatar).name}`); }
+  $("avatarModal").classList.remove("show"); enterApp();
+};
+
+const USERNAME_RE = /^[\p{L}\p{N} _.'-]{2,20}$/u;
+function selectPlayer(name, avatar) {
+  name = name.trim().replace(/\s+/g, " ");
+  const s = loadStore(), key = name.toLowerCase();
+  const isNew = !s.players[key];
+  if (isNew) {
+    s.players[key] = { name, avatar: avatar || null, created: Date.now(), lastPlayed: Date.now(), progress: { history: {}, states: {} }, seen: {} };
+    // Carry over anything saved before usernames existed into the first player created.
+    if (Object.keys(s.players).length === 1) {
+      try {
+        const old = JSON.parse(localStorage.getItem("americanStoryProgress"));
+        if (old) s.players[key].progress = { history: old.history || {}, states: old.states || {} };
+        const oldSeen = JSON.parse(localStorage.getItem("americanStorySeen"));
+        if (oldSeen) s.players[key].seen = oldSeen;
+      } catch {}
+      localStorage.removeItem("americanStoryProgress"); localStorage.removeItem("americanStorySeen");
+    }
+  }
+  s.current = key; saveStore(s);
+  return isNew;
+}
+function playerSummary(p) {
+  const h = (p.progress && p.progress.history) || {}, st = (p.progress && p.progress.states) || {};
+  const eras = PERIODS.filter(x => (h[x.id] ?? 0) >= PASS).length, stars = Object.values(st).filter(b => b >= PASS).length;
+  return `${eras}/10 eras · ⭐ ${stars}/50`;
+}
+function showWelcome() {
+  closeOnline(); closeSheet();
+  const players = Object.values(loadStore().players).sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+  $("existingBox").style.display = players.length ? "" : "none";
+  $("playerList").innerHTML = players.map(p => `<button class="player-item" data-name="${esc(p.name)}"><b>${avatarHTML(p.avatar, 40)}${esc(p.name)}</b><span>${playerSummary(p)}</span></button>`).join("");
+  $("playerList").querySelectorAll(".player-item").forEach(b => b.onclick = () => { selectPlayer(b.dataset.name); toast(`Welcome back, ${b.dataset.name}!`); enterApp(); });
+  $("newUser").value = ""; $("userError").textContent = "";
+  const list = window.PRESIDENTS || [];
+  newAvatar = list.length ? list[Math.floor(Math.random() * list.length)].id : null; // start with a random president
+  renderPresGrid("presGrid", "presPicked", newAvatar, id => newAvatar = id);
+  show("welcome");
+}
+function createUser() {
+  const name = $("newUser").value.trim().replace(/\s+/g, " ");
+  if (!USERNAME_RE.test(name)) { $("userError").textContent = "Use 2–20 letters, numbers, spaces, or _ . ' -"; return; }
+  if (loadStore().players[name.toLowerCase()]) { $("userError").textContent = `"${name}" already exists on this device. Pick it from the list below, or choose another name.`; return; }
+  selectPlayer(name, newAvatar); toast(`Welcome, ${name}! Your progress will be saved.`); enterApp();
+}
+function enterApp() {
+  const p = currentPlayer();
+  if (!p) return showWelcome();
+  $("playerName").textContent = p.name;
+  $("playerAv").innerHTML = avatarHTML(p.avatar, 32);
+  setMode(mode);
+  goHome();
+}
+$("createUserBtn").onclick = createUser;
+$("newUser").addEventListener("keydown", e => { if (e.key === "Enter") createUser(); });
+$("switchBtn").onclick = showWelcome;
+
+// ---------- PROGRESS (per player) ----------
+function loadProgress() {
+  const p = currentPlayer(), pr = (p && p.progress) || {};
+  return { history: pr.history || {}, states: pr.states || {} };
+}
+function saveBest(type, id, correct) {
+  updatePlayer(p => { if ((p.progress[type][id] ?? -1) < correct) p.progress[type][id] = correct; });
+}
+function isUnlocked(i) { return i === 0 || (loadProgress().history[PERIODS[i - 1].id] ?? 0) >= PASS; }
+function clearedCount() { const h = loadProgress().history; return PERIODS.filter(p => (h[p.id] ?? 0) >= PASS).length; }
+function masteredCount() { return Object.values(loadProgress().states).filter(b => b >= PASS).length; }
+
+// A "context" is what a duel is about: { type: "history", id: periodId } or { type: "states", id: stateCode }
+function ctxInfo(ctx) {
+  if (ctx.type === "history") {
+    const idx = PERIODS.findIndex(p => p.id === ctx.id), p = PERIODS[idx];
+    return { idx, title: p.name, icon: p.icon, sub: `Era ${idx + 1} · ${p.years}` };
+  }
+  const s = STATES.find(s => s.code === ctx.id);
+  return { title: s.name, icon: "⭐", sub: `${s.region} · Became a state in ${s.year}` };
+}
+function validCtx(ctx) {
+  if (!ctx || typeof ctx !== "object") return null;
+  if (ctx.type === "history" && PERIODS.some(p => p.id === ctx.id)) return { type: "history", id: ctx.id };
+  if (ctx.type === "states" && STATES.some(s => s.code === ctx.id)) return { type: "states", id: ctx.id };
+  return null;
+}
+function poolFor(ctx) {
+  const src = ctx.type === "history" ? window.HISTORY_Q : window.STATE_Q;
+  return ((src && src[ctx.id]) || []).filter(q => q && q.q && q.a && Array.isArray(q.w) && q.w.length === 3);
+}
+
+// ---------- LEADERBOARD ----------
+function loadBoard() { try { return JSON.parse(localStorage.getItem("historyDuelBoard")) || {}; } catch { return {}; } }
+function saveBoard(b) { localStorage.setItem("historyDuelBoard", JSON.stringify(b)); }
+function recordResult(name, score, won) {
+  const b = loadBoard();
+  const key = name.toLowerCase();
+  const e = b[key] || { name, points: 0, wins: 0, played: 0 };
+  e.name = name; e.played++; e.points += score + (won ? WIN_BONUS : 0); if (won) e.wins++;
+  b[key] = e; saveBoard(b);
+}
+function renderBoard() {
+  const rows = Object.values(loadBoard()).sort((x, y) => y.points - x.points).slice(0, 10);
+  if (!rows.length) { $("leaderboard").innerHTML = '<p class="empty">No duels yet. Be the first on the board!</p>'; return; }
+  $("leaderboard").innerHTML = "<table><tr><th>#</th><th>Player</th><th>Points</th><th>Wins</th><th>Duels</th></tr>" +
+    rows.map((r, i) => `<tr><td>${["🥇","🥈","🥉"][i] || i + 1}</td><td>${esc(r.name)}</td><td>${r.points.toLocaleString()}</td><td>${r.wins}</td><td>${r.played}</td></tr>`).join("") + "</table>";
+}
+
+// ---------- HOME ----------
+const HINTS = {
+  solo: 'Play on your own at your own pace between questions. Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, or tap. You still get 10 seconds per question.',
+  pvp: 'Both players answer every question at the same time. Answers stay hidden until the round ends.<br>Player 1 keys: <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> &nbsp;·&nbsp; Player 2 keys: <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd> &nbsp;(or tap your own panel)',
+  cpu: 'Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> or click. The computer answers at the same time, so be fast!',
+  online: 'Duel a friend on another device. The host creates a room and shares the 5-letter code, the guest joins with it, then the host picks the game. Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, or click.',
+};
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll(".mode-btn[data-mode]").forEach(x => x.classList.toggle("selected", x.dataset.mode === m));
+  $("p2box").style.display = m === "pvp" ? "" : "none";
+  $("cpubox").style.display = m === "cpu" ? "" : "none";
+  $("onlinebox").style.display = m === "online" ? "" : "none";
+  $("keyhint").innerHTML = HINTS[m];
+  $("winRule").style.display = m === "solo" ? "none" : "";
+  if (m !== "online") { closeOnline(); onlineStatus(""); }
+  refreshHome();
+}
+function refreshHome() {
+  $("historyProgress").textContent = `${clearedCount()} / ${PERIODS.length} eras cleared`;
+  $("statesProgressHome").textContent = `${masteredCount()} / 50 states starred`;
+  const guestLocked = isGuest() && !!peer;
+  $("historyCard").disabled = $("statesCard").disabled = guestLocked;
+  $("guestNote").style.display = guestLocked ? "" : "none";
+  $("leaveBtn").style.display = mode === "online" && peer ? "" : "none";
+}
+function goHome() { closeSheet(); renderBoard(); refreshHome(); show("home"); }
+
+document.querySelectorAll(".mode-btn[data-mode]").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+document.querySelectorAll(".diff").forEach(b => b.onclick = () => {
+  diff = b.dataset.diff;
+  document.querySelectorAll(".diff").forEach(x => x.classList.toggle("selected", x === b));
+});
+document.querySelectorAll("[data-home]").forEach(b => b.onclick = goHome);
+$("historyCard").onclick = showMap;
+$("statesCard").onclick = showStates;
+
+// ---------- AMERICAN HISTORY MAP (snake trail) ----------
+function showMap() { closeSheet(); show("map"); renderMap(); const cur = document.querySelector(".node.open"); if (cur) cur.scrollIntoView({ block: "center" }); }
+function renderMap() {
+  const wrap = $("snake");
+  const W = wrap.clientWidth, n = PERIODS.length;
+  const rowH = 128, top = 70;
+  const xL = Math.max(46, W * 0.2), xR = W - xL;
+  const pts = PERIODS.map((_, i) => ({ x: i % 2 === 0 ? xL : xR, y: top + i * rowH }));
+  const H = top * 2 + (n - 1) * rowH;
+  wrap.style.height = H + "px";
+  const path = arr => arr.map((p, i) => i === 0 ? `M${p.x},${p.y}` :
+    `C${arr[i - 1].x},${arr[i - 1].y + rowH * 0.62} ${p.x},${p.y - rowH * 0.62} ${p.x},${p.y}`).join(" ");
+  let reach = 0; while (reach < n - 1 && isUnlocked(reach + 1)) reach++;
+  const prog = loadProgress().history;
+  const labelW = W - xL - 56;
+  let html = `<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="roadGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b8cff"/><stop offset="1" stop-color="#ff4d5e"/></linearGradient></defs>
+    <path d="${path(pts)}" class="road"/><path d="${path(pts)}" class="road-dash"/>
+    ${reach > 0 ? `<path d="${path(pts.slice(0, reach + 1))}" class="road-done"/>` : ""}</svg>
+    <div class="map-end" style="left:${xL}px;top:${top - 50}px">Start</div>
+    <div class="map-end" style="left:${pts[n - 1].x}px;top:${pts[n - 1].y + 52}px">Today</div>`;
+  pts.forEach((pt, i) => {
+    const p = PERIODS[i], best = prog[p.id], unlocked = isUnlocked(i), cleared = (best ?? 0) >= PASS;
+    const cls = !unlocked ? "locked" : cleared ? "cleared" : "open";
+    const badge = !unlocked ? "🔒" : best != null ? `${best}/10` : "";
+    const side = i % 2 === 0 ? "right" : "left";
+    const pos = side === "right" ? `left:${pt.x + 44}px` : `right:${W - pt.x + 44}px`;
+    html += `<button class="node ${cls}" data-i="${i}" style="left:${pt.x - 32}px;top:${pt.y - 32}px" aria-label="${esc(p.name)}">${p.icon}${badge ? `<span class="badge">${badge}</span>` : ""}</button>
+      <div class="node-label ${side} ${unlocked ? "" : "locked"}" style="top:${pt.y}px;${pos};max-width:${labelW}px"><small>Era ${i + 1}</small><b>${esc(p.name)}</b>${p.years}</div>`;
+  });
+  wrap.innerHTML = html;
+  wrap.querySelectorAll(".node").forEach(nd => nd.onclick = () => selectPeriod(+nd.dataset.i));
+  $("mapProgress").textContent = `${clearedCount()} / ${n} cleared`;
+}
+function selectPeriod(i) {
+  if (!isUnlocked(i)) { toast(`🔒 Score ${PASS}/10 in "${PERIODS[i - 1].name}" to unlock this era.`); return; }
+  document.querySelectorAll(".node").forEach(nd => nd.classList.toggle("selected", +nd.dataset.i === i));
+  openSheet({ type: "history", id: PERIODS[i].id });
+}
+window.addEventListener("resize", () => { if ($("map").classList.contains("active")) renderMap(); });
+
+// ---------- STATES PICKER ----------
+function showStates() { closeSheet(); show("states"); renderStates(); }
+function renderStates() {
+  $("regionChips").innerHTML = REGIONS.map(r => `<button class="chip ${r === stateRegion ? "selected" : ""}" data-r="${r}">${r}</button>`).join("");
+  $("regionChips").querySelectorAll(".chip").forEach(c => c.onclick = () => { stateRegion = c.dataset.r; renderStates(); });
+  const q = $("stateSearch").value.trim().toLowerCase();
+  const prog = loadProgress().states;
+  const list = STATES.filter(s => (stateRegion === "All" || s.region === stateRegion) && (!q || s.name.toLowerCase().includes(q) || s.code.toLowerCase() === q));
+  $("stateGrid").innerHTML = list.map(s => {
+    const b = prog[s.code], m = (b ?? 0) >= PASS;
+    return `<button class="state-tile ${m ? "mastered" : ""}" data-code="${s.code}"><span class="st-abbr">${s.code}</span><span class="st-name">${esc(s.name)}</span>${b != null ? `<span class="st-best">${m ? "⭐ " : ""}${b}/10</span>` : ""}</button>`;
+  }).join("") || '<p class="empty">No states match your search.</p>';
+  $("stateGrid").querySelectorAll(".state-tile").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".state-tile").forEach(x => x.classList.toggle("selected", x === t));
+    openSheet({ type: "states", id: t.dataset.code });
+  });
+  $("statesProgress").textContent = `⭐ ${masteredCount()} / 50`;
+}
+$("stateSearch").addEventListener("input", renderStates);
+
+// ---------- BOTTOM SHEET ----------
+function openSheet(ctx) {
+  const info = ctxInfo(ctx), best = loadProgress()[ctx.type][ctx.id];
+  $("sheetIcon").textContent = info.icon;
+  $("sheetTitle").textContent = info.title;
+  $("sheetSub").textContent = info.sub;
+  $("sheetBlurb").textContent = ctx.type === "history" ? PERIODS[info.idx].blurb
+    : `10 questions about ${info.title}'s history. Get ${PASS} or more right to earn its gold star.`;
+  $("sheetBest").textContent = best == null ? "Not played yet" : `Best: ${best}/10${best >= PASS ? " ✅" : ""}`;
+  $("sheetVs").textContent = mode === "solo" ? "Solo" : mode === "pvp" ? "Two players, this screen" : mode === "cpu" ? `Vs. computer (${diff})`
+    : connected() ? `Online vs. ${opponentName || "opponent"}` : "Online: no opponent yet";
+  const btn = $("sheetStart");
+  btn.disabled = false;
+  if (mode === "online" && !connected()) { btn.textContent = "Set up an online room first"; btn.onclick = goHome; }
+  else if (isGuest()) { btn.textContent = "The host starts the duel"; btn.disabled = true; btn.onclick = null; }
+  else { btn.textContent = mode === "solo" ? "Start ▶" : "Start duel ▶"; btn.onclick = () => startDuel(ctx); }
+  $("sheet").classList.add("show");
+}
+function closeSheet() {
+  $("sheet").classList.remove("show");
+  document.querySelectorAll(".node.selected, .state-tile.selected").forEach(x => x.classList.remove("selected"));
+}
+$("sheetClose").onclick = closeSheet;
+
+// ---------- ONLINE (PeerJS) ----------
+function onlineStatus(html) { $("onlineStatus").innerHTML = html; }
+function myName() { const p = currentPlayer(); return p ? p.name : (isHost ? "Host" : "Guest"); }
+function myAvatar() { const p = currentPlayer(); return p && presById(p.avatar) ? p.avatar : null; }
+// Avatar for player index p in the current game (the computer gets a robot).
+function av(p, size) { return avatarHTML(game && game.avatars ? game.avatars[p] : null, size, mode === "cpu" && p === 1 ? "🤖" : "👤"); }
+function makeCode() { const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; return Array.from({ length: 5 }, () => A[Math.floor(Math.random() * A.length)]).join(""); }
+function send(msg) { if (connected()) conn.send(msg); }
+function peerAvailable() {
+  if (typeof Peer !== "undefined") return true;
+  onlineStatus("⚠️ Online play couldn't load. Check your internet connection (or whether your network blocks unpkg.com / peerjs.com).");
+  return false;
+}
+function closeOnline() {
+  stopTimers();
+  const c = conn, p = peer;
+  conn = null; peer = null; opponentName = ""; opponentAvatar = null;
+  try { c && c.close(); } catch {}
+  try { p && p.destroy(); } catch {}
+}
+
+function createRoom(attempt = 0) {
+  if (!peerAvailable()) return;
+  closeOnline();
+  isHost = true; me = 0;
+  const code = makeCode();
+  onlineStatus("Creating room…");
+  const p = peer = new Peer(ROOM_PREFIX + code);
+  refreshHome();
+  p.on("open", () => onlineStatus(`Share this code with your opponent:<span class="room-code">${code}</span>Waiting for them to join…`));
+  p.on("connection", c => {
+    if (conn) { c.on("open", () => { c.send({ t: "full" }); setTimeout(() => c.close(), 500); }); return; }
+    conn = c; wireConn(c);
+  });
+  p.on("error", err => {
+    if (peer !== p) return;
+    if (err.type === "unavailable-id" && attempt < 3) return createRoom(attempt + 1);
+    onlineStatus("⚠️ Connection problem: " + esc(err.type || err.message));
+  });
+}
+
+function joinRoom() {
+  if (!peerAvailable()) return;
+  const code = $("joinCode").value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{5}$/.test(code)) { onlineStatus("Enter the 5-letter room code."); return; }
+  closeOnline();
+  isHost = false; me = 1;
+  onlineStatus("Connecting…");
+  const p = peer = new Peer();
+  refreshHome();
+  p.on("open", () => { conn = p.connect(ROOM_PREFIX + code, { reliable: true }); wireConn(conn); });
+  p.on("error", err => {
+    if (peer !== p) return;
+    onlineStatus(err.type === "peer-unavailable" ? "⚠️ No room found with that code. Check it and try again." : "⚠️ Connection problem: " + esc(err.type || err.message));
+  });
+}
+
+function wireConn(c) {
+  c.on("open", () => { if (!isHost) { send({ t: "hello", name: myName(), avatar: myAvatar() }); onlineStatus("✅ Connected! The host is choosing a game…"); refreshHome(); } });
+  c.on("data", onMessage);
+  c.on("close", () => { if (conn === c) opponentLeft(); });
+  c.on("error", () => { if (conn === c) opponentLeft(); });
+}
+
+function opponentLeft() {
+  closeOnline();
+  refreshHome();
+  if ($("results").classList.contains("active")) {
+    ["againBtn", "nextEraBtn", "backBtn"].forEach(id => $(id).style.display = "none");
+    $("rematchNote").textContent = "Your opponent has left.";
+    return;
+  }
+  game = null;
+  goHome(); setMode("online");
+  onlineStatus("⚠️ Your opponent disconnected.");
+}
+
+function onMessage(m) {
+  if (!m || typeof m !== "object") return;
+  switch (m.t) {
+    case "hello":
+      if (isHost) {
+        opponentName = String(m.name || "Guest").slice(0, 20); opponentAvatar = presById(m.avatar) ? m.avatar : null;
+        onlineStatus(`✅ ${esc(opponentName)} joined! Now choose a game below.`);
+        toast(`${opponentName} joined! Pick a game to start.`);
+      }
+      break;
+    case "full":
+      closeOnline(); refreshHome(); onlineStatus("⚠️ That room already has two players.");
+      break;
+    case "start":
+      if (!isHost && Array.isArray(m.qs) && Array.isArray(m.names)) {
+        closeSheet();
+        beginGame(m.names.map(n => String(n).slice(0, 20)), m.qs, validCtx(m.ctx), (Array.isArray(m.avatars) ? m.avatars : []).map(a => presById(a) ? a : null));
+        nextQuestion();
+      }
+      break;
+    case "next":
+      if (!isHost && game && game.phase === "reveal") nextQuestion();
+      break;
+    case "pick":
+      if (isHost && game && game.phase === "asking" && game.i === m.i) lockIn(1, validIdx(m.k), clampTime(m.time));
+      break;
+    case "locked":
+      if (!isHost && game && game.phase === "asking" && game.i === m.i) setStatus(0, "🔒 Locked in", "locked");
+      break;
+    case "reveal":
+      if (!isHost && game && game.phase === "asking" && game.i === m.i) {
+        game.picks = m.picks.map(validIdx);
+        game.times = m.times.map(clampTime);
+        endRound();
+      }
+      break;
+  }
+}
+
+$("createBtn").onclick = () => createRoom();
+$("joinBtn").onclick = joinRoom;
+$("joinCode").addEventListener("keydown", e => { if (e.key === "Enter") joinRoom(); });
+$("leaveBtn").onclick = () => { closeOnline(); onlineStatus("You left the room."); refreshHome(); };
+window.addEventListener("pagehide", closeOnline);
+
+// ---------- DUEL ----------
+function startDuel(ctx) {
+  if (!ctx) return;
+  if (mode === "online" && !(connected() && isHost)) { toast(isHost ? "Wait for your opponent to join first." : "Only the host can start the duel."); return; }
+  const pool = poolFor(ctx);
+  if (pool.length < QUESTIONS_PER_DUEL) { toast("Questions for this one aren't available yet."); return; }
+  stopTimers();
+  const n1 = myName();
+  let n2;
+  if (mode === "solo") n2 = "";
+  else if (mode === "pvp") n2 = $("p2name").value.trim().slice(0, 20) || "Player 2";
+  else if (mode === "cpu") n2 = `Computer (${diff})`;
+  else n2 = opponentName || "Guest";
+  const title = ctxInfo(ctx).title;
+  const qs = pickFresh(ctx, pool).map(q => ({ era: title, q: q.q, a: q.a, f: q.f || "", opts: shuffle([q.a, ...q.w]) }));
+  const avatars = [myAvatar(), mode === "online" ? opponentAvatar : null];
+  if (mode === "online") send({ t: "start", names: [n1, n2], qs, ctx, avatars });
+  closeSheet();
+  beginGame([n1, n2], qs, ctx, avatars);
+  nextQuestion();
+}
+
+// Remember which questions this device has already seen for each era/state,
+// so a retry gets questions the player hasn't had yet. Once all are used, a new cycle starts.
+function qKey(q) { let h = 5381; for (const ch of q.q) h = ((h << 5) + h + ch.charCodeAt(0)) | 0; return (h >>> 0).toString(36); }
+function pickFresh(ctx, pool) {
+  const all = (currentPlayer() || {}).seen || {};
+  const key = ctx.type + ":" + ctx.id;
+  let seen = new Set(all[key] || []);
+  let picks = shuffle(pool.filter(q => !seen.has(qKey(q))));
+  if (picks.length < QUESTIONS_PER_DUEL) {
+    // Not enough unseen ones left: use the remaining unseen first, top up from the rest, and start a new cycle.
+    picks = picks.concat(shuffle(pool.filter(q => seen.has(qKey(q)))));
+    seen = new Set();
+  }
+  picks = picks.slice(0, QUESTIONS_PER_DUEL);
+  picks.forEach(q => seen.add(qKey(q)));
+  updatePlayer(p => { p.seen[key] = [...seen]; });
+  return picks;
+}
+
+function beginGame(names, qs, ctx, avatars = []) {
+  $("game").classList.toggle("solo", mode === "solo");
+  $("results").classList.toggle("solo", mode === "solo");
+  game = { names, qs, ctx, avatars, scores: [0, 0], right: [0, 0], i: -1, picks: [null, null], times: [0, 0], done: [false, false], phase: "idle", history: [] };
+  const you = p => (mode === "online" && p === me) ? " (you)" : "";
+  $("g1name").innerHTML = av(0, 24) + esc(names[0]); $("pp1name").innerHTML = av(0, 28) + esc(names[0] + you(0));
+  $("g2name").innerHTML = esc(names[1]) + " " + av(1, 24); $("pp2name").innerHTML = av(1, 28) + esc(names[1] + you(1));
+  updateScores();
+  show("game");
+}
+
+// ---------- ROUND ----------
+function updateScores() { $("g1score").textContent = game.scores[0]; $("g2score").textContent = game.scores[1]; }
+function setStatus(p, text, cls) { const s = $("st" + (p + 1)); s.textContent = text; s.className = "status " + cls; }
+
+function nextQuestion() {
+  stopTimers();
+  game.i++;
+  if (game.i >= game.qs.length) return endDuel();
+  const q = game.qs[game.i];
+  game.picks = [null, null]; game.times = [0, 0]; game.done = [false, mode === "solo"]; // solo: no second player to wait for
+  $("qcount").textContent = `Question ${game.i + 1} / ${game.qs.length}`;
+  $("era").textContent = q.era || "";
+  $("question").textContent = q.q;
+  $("fact").classList.remove("show");
+  $("nextRow").classList.remove("show");
+  [0, 1].forEach(p => {
+    const box = $("opts" + (p + 1));
+    box.innerHTML = "";
+    q.opts.forEach((o, k) => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.innerHTML = (interactive(p) ? `<kbd>${keysFor(p)[k].toUpperCase()}</kbd>` : "") + `<span>${esc(o)}</span>`;
+      b.disabled = !interactive(p);
+      b.onclick = () => { if (interactive(p) && game.phase === "asking") lockIn(p, k, remaining()); };
+      box.appendChild(b);
+    });
+    // On a shared screen, hide both picks. Otherwise, only hide the opponent's pick.
+    $("panel" + (p + 1)).classList.toggle("hidden-opts", mode === "pvp" || !interactive(p));
+    $("panel" + (p + 1)).classList.toggle("local", mode !== "pvp" && interactive(p));
+    $("panel" + (p + 1)).classList.toggle("remote", !interactive(p));
+    setStatus(p, "Thinking…", "");
+  });
+
+  game.start = performance.now();
+  game.phase = "asking";
+  $("game").classList.add("asking");
+  timerId = setInterval(tick, 50);
+  tick();
+
+  if (mode === "cpu") {
+    const s = CPU_SKILL[diff];
+    const t = s.min + Math.random() * (s.max - s.min);
+    const correctIdx = q.opts.indexOf(q.a);
+    let choice = correctIdx;
+    if (Math.random() > s.acc) { const wrong = [0, 1, 2, 3].filter(x => x !== correctIdx); choice = wrong[Math.floor(Math.random() * 3)]; }
+    cpuTimeout = setTimeout(() => lockIn(1, choice, remaining()), t * 1000);
+  }
+}
+
+function tick() {
+  if (!game || game.phase !== "asking") return;
+  const left = remaining();
+  $("timerBar").style.width = (left / SECONDS * 100) + "%";
+  $("timerBar").classList.toggle("danger", left <= 3);
+  $("timerNum").textContent = Math.ceil(left);
+  if (left > 0) return;
+  clearInterval(timerId); timerId = null;
+  if (mode !== "online") return endRound();
+  // Online: lock in "no answer" for me; the host then waits briefly for the guest's answer to arrive.
+  if (!game.done[me]) lockIn(me, null, 0);
+  if (isHost && game.phase === "asking") {
+    graceTimeout = setTimeout(() => { if (game && game.phase === "asking") lockIn(1, null, 0); }, GRACE_MS);
+    setStatus(1, game.done[1] ? "🔒 Locked in" : "Waiting…", game.done[1] ? "locked" : "");
+  }
+}
+
+function lockIn(p, k, time) {
+  if (!game || game.phase !== "asking" || game.done[p]) return;
+  game.done[p] = true; game.picks[p] = k; game.times[p] = time;
+  const btns = $("opts" + (p + 1)).children;
+  if (k !== null) btns[k].classList.add("chosen");
+  [...btns].forEach(b => b.disabled = true);
+  setStatus(p, k === null ? "⏰ Out of time" : "🔒 Locked in", "locked");
+  if (mode === "online" && !isHost && p === me) send({ t: "pick", i: game.i, k, time });
+  if (mode === "online" && isHost && p === me) send({ t: "locked", i: game.i }); // status only; the answer stays secret
+  const iReferee = mode !== "online" || isHost;
+  if (iReferee && game.done[0] && game.done[1]) endRound();
+}
+
+function endRound() {
+  if (!game || game.phase !== "asking") return;
+  game.phase = "reveal";
+  $("game").classList.remove("asking");
+  stopTimers();
+  if (mode === "online" && isHost) send({ t: "reveal", i: game.i, picks: game.picks, times: game.times });
+  const q = game.qs[game.i];
+  const correctIdx = q.opts.indexOf(q.a);
+  const gains = [0, 0];
+  [0, 1].forEach(p => {
+    $("panel" + (p + 1)).classList.remove("hidden-opts");
+    const btns = $("opts" + (p + 1)).children;
+    [...btns].forEach(b => { b.disabled = true; b.classList.remove("chosen"); });
+    btns[correctIdx].classList.add("correct");
+    const pk = game.picks[p];
+    if (pk === null) { setStatus(p, "⏰ Time's up", "wrong"); }
+    else if (pk === correctIdx) {
+      gains[p] = 100 + Math.floor(game.times[p]) * 10;
+      game.scores[p] += gains[p]; game.right[p]++;
+      setStatus(p, `✔ +${gains[p]}`, "right");
+    } else { btns[pk].classList.add("incorrect"); setStatus(p, "✘ +0", "wrong"); }
+  });
+  game.history.push({ q: q.q, a: q.a, picks: game.picks.map(pk => pk === null ? null : q.opts[pk]), gains });
+  updateScores();
+  $("fact").innerHTML = `<b>Answer: ${esc(q.a)}.</b> ${esc(q.f || "")}`;
+  $("fact").classList.add("show");
+  $("nextBtn").style.display = isGuest() ? "none" : "";
+  $("pressHint").style.display = isGuest() ? "none" : "";
+  $("waitHost").style.display = isGuest() ? "" : "none";
+  $("nextBtn").textContent = game.i === game.qs.length - 1 ? "See results 🏁" : "Next question ▶";
+  $("nextRow").classList.add("show");
+}
+
+function advance() {
+  if (!game || game.phase !== "reveal") return;
+  if (mode === "online") { if (!isHost) return; send({ t: "next" }); }
+  nextQuestion();
+}
+$("nextBtn").onclick = advance;
+
+function endDuel() {
+  stopTimers();
+  game.phase = "done";
+  const [s1, s2] = game.scores;
+  const [n1, n2] = game.names;
+  const winner = s1 === s2 ? -1 : (s1 > s2 ? 0 : 1);
+  // Each device records only its own human players.
+  if (mode === "solo") recordResult(n1, s1, false);
+  else if (mode === "pvp") { recordResult(n1, s1, winner === 0); recordResult(n2, s2, winner === 1); }
+  else { const lp = localPlayer(); recordResult(game.names[lp], game.scores[lp], winner === lp); }
+  const lost = winner !== -1 && mode !== "pvp" && winner !== localPlayer();
+  if (mode === "solo") {
+    const r = game.right[0];
+    $("resultsTitle").innerHTML = "Round <span>Over</span>";
+    $("trophy").textContent = r >= 9 ? "🏆" : r >= PASS ? "🎖️" : "📚";
+    $("winnerText").textContent = r >= 9 ? "Outstanding!" : r >= PASS ? "Well done!" : "Keep going!";
+  } else {
+    $("resultsTitle").innerHTML = "Duel <span>Over</span>";
+    $("trophy").textContent = winner === -1 ? "🤝" : lost ? (mode === "cpu" ? "🤖" : "🥈") : "🏆";
+    $("winnerText").textContent = winner === -1 ? "It's a tie!" : `${game.names[winner]} wins!`;
+  }
+  $("r1name").innerHTML = av(0, 48) + esc(n1); $("r1score").textContent = s1; $("r1right").textContent = `${game.right[0]} / ${game.qs.length} correct`;
+  $("r2name").innerHTML = av(1, 48) + esc(n2); $("r2score").textContent = s2; $("r2right").textContent = `${game.right[1]} / ${game.qs.length} correct`;
+
+  // Progress: on a shared screen the best player's score counts; otherwise this device's player.
+  const ctx = game.ctx;
+  let banner = "", passed = false, nextCtx = null;
+  if (ctx) {
+    const correct = game.right[localPlayer()]; // progress belongs to the signed-in player (Player 1 on a shared screen)
+    const info = ctxInfo(ctx);
+    passed = correct >= PASS;
+    if (ctx.type === "history") {
+      const next = PERIODS[info.idx + 1];
+      const wasUnlocked = next ? isUnlocked(info.idx + 1) : true;
+      saveBest("history", ctx.id, correct);
+      if (passed && next) {
+        nextCtx = { type: "history", id: next.id };
+        banner = wasUnlocked ? `✅ Era cleared with ${correct}/10!` : `🎉 Era cleared with ${correct}/10! Unlocked: ${next.icon} ${next.name}`;
+      } else if (passed) banner = `🏁 ${correct}/10! You've traveled the whole American story!`;
+      else banner = (next ? `${correct}/10 correct. You need ${PASS} to unlock "${next.name}".` : `${correct}/10 correct. Get ${PASS} to finish the final era!`) + " Try again with new questions!";
+    } else {
+      saveBest("states", ctx.id, correct);
+      banner = passed ? `⭐ ${info.title} starred with ${correct}/10!` : `${correct}/10 correct. Get ${PASS} or more to earn ${info.title}'s star.`;
+    }
+  }
+  $("progressBanner").textContent = banner;
+  $("savedNote").textContent = ctx && currentPlayer() ? `💾 Saved to ${currentPlayer().name}'s progress` : "";
+  $("progressBanner").className = "progress-banner " + (passed ? "pass" : "fail");
+
+  const canControl = !isGuest();
+  $("nextEraBtn").style.display = canControl && nextCtx ? "" : "none";
+  $("nextEraBtn").onclick = () => startDuel(nextCtx);
+  $("againBtn").style.display = canControl && ctx ? "" : "none";
+  $("againBtn").className = nextCtx ? "btn secondary" : "btn";
+  $("againBtn").textContent = passed ? "Play again" : "Try again";
+  $("againBtn").onclick = () => startDuel(ctx);
+  $("backBtn").style.display = canControl && ctx ? "" : "none";
+  $("backBtn").textContent = ctx && ctx.type === "states" ? "All states" : "Map";
+  $("backBtn").onclick = ctx && ctx.type === "states" ? showStates : showMap;
+  $("rematchNote").textContent = isGuest() ? "The host picks what's next. You'll jump in automatically." : "";
+
+  $("reviewTable").innerHTML = `<tr><th>Question</th><th>Answer</th><th>${esc(n1)}</th><th>${esc(n2)}</th></tr>` +
+    game.history.map(h => `<tr><td>${esc(h.q)}</td><td><b>${esc(h.a)}</b></td>` +
+      h.picks.map((pk, p) => `<td class="${h.gains[p] ? "ok" : "bad"}">${pk === null ? "—" : esc(pk)}${h.gains[p] ? " (+" + h.gains[p] + ")" : ""}</td>`).join("") + "</tr>").join("");
+  show("results");
+}
+
+// ---------- KEYBOARD ----------
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeSheet();
+  if (!game || !$("game").classList.contains("active")) return;
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase();
+  if (game.phase === "reveal" && (k === " " || k === "enter")) { e.preventDefault(); advance(); return; }
+  if (game.phase !== "asking") return;
+  if (mode === "pvp") {
+    if (P1_KEYS.includes(k)) lockIn(0, P1_KEYS.indexOf(k), remaining());
+    else if (P2_KEYS.includes(k)) lockIn(1, P2_KEYS.indexOf(k), remaining());
+  } else {
+    const idx = P1_KEYS.includes(k) ? P1_KEYS.indexOf(k) : NUM_KEYS.indexOf(k);
+    if (idx >= 0) lockIn(localPlayer(), idx, remaining());
+  }
+});
+
+mode = "solo";
+enterApp(); // shows the username screen first if no player is signed in on this device
+</script>
+</body>
+</html>
