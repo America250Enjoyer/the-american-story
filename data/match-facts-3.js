@@ -1,5 +1,5 @@
 window.MATCH_Q = window.MATCH_Q || {};
-window.MATCH_Q.facts = (window.MATCH_Q.facts || []).concat([
+window.MATCH_Q.wars = (window.MATCH_Q.wars || []).concat([
   { q: "The Continental Congress created the U.S. Army in which year?", a: "1775", w: ["1776", "1781", "1789"], f: "Congress established the Continental Army on June 14, 1775, which the Army celebrates as its birthday." },
   { q: "Who nominated George Washington to command the Continental Army in 1775?", a: "John Adams", w: ["Samuel Adams", "John Hancock", "Benjamin Franklin"], f: "John Adams of Massachusetts proposed the Virginian Washington, hoping to unite the colonies behind the war." },
   { q: "After losing the 1776 Battle of Long Island, Washington's army escaped across which river?", a: "East River", w: ["Hudson River", "Delaware River", "Harlem River"], f: "On the night of August 29-30, 1776, boats ferried the army from Brooklyn to Manhattan, saving it from capture." },

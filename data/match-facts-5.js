@@ -1,5 +1,5 @@
 window.MATCH_Q = window.MATCH_Q || {};
-window.MATCH_Q.facts = (window.MATCH_Q.facts || []).concat([
+window.MATCH_Q.policy = (window.MATCH_Q.policy || []).concat([
   { q: "Gibbons v. Ogden (1824) confirmed Congress's power to regulate what?", a: "Interstate commerce", w: ["State elections", "Public schools", "Church property"], f: "The case struck down a New York steamboat monopoly, ruling that federal power over interstate commerce outweighed the state's grant." },
   { q: "Worcester v. Georgia (1832) ruled Georgia had no authority over which nation's lands?", a: "Cherokee", w: ["Creek", "Seminole", "Choctaw"], f: "Chief Justice John Marshall held that only the federal government could deal with the Cherokee Nation, but the ruling was not enforced." },
   { q: "Gideon v. Wainwright (1963) guaranteed what for defendants who cannot afford one?", a: "A court-appointed lawyer", w: ["A jury of their peers", "Release on bail", "A trial in their hometown"], f: "Clarence Earl Gideon sent a handwritten petition from a Florida prison, and the Court ruled states must provide counsel in felony cases." },
