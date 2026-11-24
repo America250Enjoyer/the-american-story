@@ -198,7 +198,7 @@
   /* Touch & small screens */
   .opt, .btn, .mode-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .pscore > span:first-child { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  @media (hover: none) and (pointer: coarse) { .opt kbd, .wchip kbd, #pressHint { display: none !important; } }
+  @media (hover: none) and (pointer: coarse) { .opt kbd, .wchip kbd, .lock-btn kbd, #pressHint { display: none !important; } }
   @media (max-width: 600px) {
     h1 { font-size: 2.2rem; }
     .screen { padding: 18px 12px; }
@@ -335,6 +335,15 @@
   .wchip.used { opacity: .25; text-decoration: line-through; }
   .wchip:disabled { cursor: default; }
   .match-rules { margin: 0; padding-left: 18px; line-height: 1.6; }
+  /* In a match, a tapped answer is only "picked" (changeable) until locked or time runs out */
+  .opt.picked, .panel.hidden-opts .opt.picked { opacity: 1; border-color: var(--gold); background: rgba(255, 197, 61, .14); box-shadow: 0 0 0 1px var(--gold) inset; }
+  .lock-btn {
+    display: none; width: 100%; margin-top: 10px; padding: 11px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; box-shadow: 0 6px 18px rgba(61, 107, 255, .35);
+  }
+  .lock-btn.show { display: block; }
+  .lock-btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+  .lock-btn kbd { margin-left: 6px; }
 
   /* Player profiles */
   .player-bar { display: flex; justify-content: center; align-items: center; gap: 10px; margin: -12px 0 22px; flex-wrap: wrap; }
@@ -554,11 +563,13 @@
       <h3><span id="pp1name">Player 1</span><span class="status" id="st1">Thinking…</span></h3>
       <div class="wagers" id="wg1"></div>
       <div id="opts1"></div>
+      <button class="lock-btn" id="lock1">Lock in ✓</button>
     </div>
     <div class="panel p2 hidden-opts" id="panel2">
       <h3><span id="pp2name">Player 2</span><span class="status" id="st2">Thinking…</span></h3>
       <div class="wagers" id="wg2"></div>
       <div id="opts2"></div>
+      <button class="lock-btn" id="lock2">Lock in ✓</button>
     </div>
   </div>
   <div class="next-row" id="nextRow"><button class="btn" id="nextBtn">Next question ▶</button>
@@ -671,7 +682,8 @@ const REGIONS = ["All", "Northeast", "South", "Midwest", "West"];
 
 const QUESTIONS_PER_DUEL = 10;
 const PASS = 7;          // correct answers needed to clear an era / star a state
-const SECONDS = 10;
+const SECONDS = 10;        // solo: seconds per question
+const MATCH_SECONDS = 15;  // duels (Trivia Match): seconds per question
 const WIN_BONUS = 250;
 const P1_KEYS = ["a", "s", "d", "f"];
 const P2_KEYS = ["j", "k", "l", ";"];
@@ -692,14 +704,15 @@ const $ = id => document.getElementById(id);
 const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const validIdx = k => (Number.isInteger(k) && k >= 0 && k < 4) ? k : null;
-const clampTime = t => Math.min(SECONDS, Math.max(0, Number(t) || 0));
+const clampTime = t => Math.min(MATCH_SECONDS, Math.max(0, Number(t) || 0));
 
 function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id)); window.scrollTo(0, 0); }
 function stopTimers() { clearInterval(timerId); clearTimeout(cpuTimeout); clearTimeout(graceTimeout); timerId = null; }
 function localPlayer() { return mode === "online" ? me : 0; }
 function interactive(p) { return mode === "pvp" || p === localPlayer(); }
 function keysFor(p) { return mode === "pvp" && p === 1 ? P2_KEYS : P1_KEYS; }
-function remaining() { return Math.max(0, SECONDS - (performance.now() - game.start) / 1000); }
+function timeLimit() { return game && game.ctx && game.ctx.type === "match" ? MATCH_SECONDS : SECONDS; }
+function remaining() { return Math.max(0, timeLimit() - (performance.now() - game.start) / 1000); }
 function isGuest() { return mode === "online" && !isHost; }
 function connected() { return !!(conn && conn.open); }
 let toastTimer;
@@ -870,18 +883,23 @@ function renderBoard() {
 // ---------- HOME ----------
 const HINTS = {
   solo: 'Play on your own at your own pace between questions. Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, or tap. You still get 10 seconds per question.',
-  pvp: 'Both players answer every question at the same time. Answers stay hidden until the round ends.<br>Player 1 keys: <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> &nbsp;·&nbsp; Player 2 keys: <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd> &nbsp;(or tap your own panel)',
-  cpu: 'Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> or click. The computer answers at the same time, so be fast!',
+  pvp: 'Both players answer every question at the same time on this screen (no peeking at each other\'s side!).<br>Player 1 keys: <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> &nbsp;·&nbsp; Player 2 keys: <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd> &nbsp;(or tap your own panel)',
+  cpu: 'Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> or click. The computer answers at the same time.',
   online: 'Duel a friend on another device. The host creates a room and shares the 5-letter code, the guest joins with it, then the host starts the match. Answer with <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, or click.',
 };
 const SCORE_RULES = {
   solo: '<b>Scoring:</b> correct answer = 100 pts + 10 pts for every second left. Wrong or no answer = 0.',
   duel: '<b>Trivia Match rules:</b><ul class="match-rules"><li>6 rounds of 4 questions. Round topics: American Presidents → Elections → American History Facts, twice.</li>' +
     '<li>Every round you have four bets: <b>1, 3, 5 and 7</b> points. Pick a bet for each question; each bet can be used only once per round.</li>' +
-    '<li>Right answer = you win your bet. Wrong or no answer = 0. You still get 10 seconds per question.</li>' +
+    '<li><b>15 seconds</b> per question. Tap an answer to pick it; you can change your answer and bet until time runs out, or press <b>Lock in</b> to finish early.</li>' +
+    '<li>Right answer = you win your bet. Wrong or no answer = 0.</li>' +
     '<li>Most points after round 6 wins the match and a win on the leaderboard.</li></ul>',
 };
-const BET_KEYS_HINT = { pvp: ' Bets: Player 1 <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> · Player 2 <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> (1 / 3 / 5 / 7).', cpu: ' Bets: <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> (1 / 3 / 5 / 7).', online: ' Bets: <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> (1 / 3 / 5 / 7).' };
+const BET_KEYS_HINT = {
+  pvp: ' Bets: Player 1 <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> · Player 2 <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> (1 / 3 / 5 / 7). Lock in: Player 1 <kbd>G</kbd> · Player 2 <kbd>H</kbd>.',
+  cpu: ' Bets: <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> (1 / 3 / 5 / 7). Lock in: <kbd>Enter</kbd>.',
+  online: ' Bets: <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> (1 / 3 / 5 / 7). Lock in: <kbd>Enter</kbd>.',
+};
 function setMode(m) {
   mode = m;
   document.querySelectorAll(".mode-btn[data-mode]").forEach(x => x.classList.toggle("selected", x.dataset.mode === m));
@@ -1280,7 +1298,7 @@ function nextQuestion() {
       b.className = "opt";
       b.innerHTML = (interactive(p) ? `<kbd>${keysFor(p)[k].toUpperCase()}</kbd>` : "") + `<span>${esc(o)}</span>`;
       b.disabled = !interactive(p);
-      b.onclick = () => { if (interactive(p) && game.phase === "asking") lockIn(p, k, remaining()); };
+      b.onclick = () => answer(p, k);
       box.appendChild(b);
     });
     // On a shared screen, hide both picks. Otherwise, only hide the opponent's pick.
@@ -1289,7 +1307,12 @@ function nextQuestion() {
     $("panel" + (p + 1)).classList.toggle("remote", !interactive(p));
     setStatus(p, "Thinking…", "");
     renderWagers(p);
+    const lb = $("lock" + (p + 1));
+    lb.classList.toggle("show", isMatch() && interactive(p));
+    lb.disabled = true; // enabled once an answer is picked
+    lb.innerHTML = "Lock in ✓" + (mode === "pvp" ? `<kbd>${p === 0 ? "G" : "H"}</kbd>` : "<kbd>Enter</kbd>");
   });
+  game.sel = [null, null];
 
   game.start = performance.now();
   game.phase = "asking";
@@ -1314,23 +1337,45 @@ function nextQuestion() {
 function tick() {
   if (!game || game.phase !== "asking") return;
   const left = remaining();
-  $("timerBar").style.width = (left / SECONDS * 100) + "%";
+  $("timerBar").style.width = (left / timeLimit() * 100) + "%";
   $("timerBar").classList.toggle("danger", left <= 3);
   $("timerNum").textContent = Math.ceil(left);
   if (left > 0) return;
   clearInterval(timerId); timerId = null;
-  if (mode !== "online") return endRound();
-  // Online: lock in "no answer" for me; the host then waits briefly for the guest's answer to arrive.
-  if (!game.done[me]) lockIn(me, null, 0);
+  if (mode !== "online") {
+    // Match: whatever answer each player has picked becomes final when time runs out.
+    if (isMatch()) [0, 1].forEach(p => { if (interactive(p) && !game.done[p]) lockIn(p, game.sel[p], 0); });
+    return endRound();
+  }
+  // Online: lock in my picked answer (match) or "no answer"; the host then waits briefly for the guest's answer to arrive.
+  if (!game.done[me]) lockIn(me, isMatch() ? game.sel[me] : null, 0);
   if (isHost && game.phase === "asking") {
     graceTimeout = setTimeout(() => { if (game && game.phase === "asking") lockIn(1, null, 0); }, GRACE_MS);
     setStatus(1, game.done[1] ? "🔒 Locked in" : "Waiting…", game.done[1] ? "locked" : "");
   }
 }
 
+// A tap/key on an answer: in a match it only *picks* the answer (changeable until locked or time's up);
+// in solo it locks immediately.
+function answer(p, k) {
+  if (!game || game.phase !== "asking" || !interactive(p) || game.done[p]) return;
+  if (!isMatch()) return lockIn(p, k, remaining());
+  game.sel[p] = k;
+  [...$("opts" + (p + 1)).children].forEach((b, j) => b.classList.toggle("picked", j === k));
+  $("lock" + (p + 1)).disabled = false;
+  setStatus(p, "✏️ Answer picked", "");
+}
+function lockSelected(p) {
+  if (!game || game.phase !== "asking" || !isMatch() || !interactive(p) || game.done[p] || game.sel[p] === null) return;
+  lockIn(p, game.sel[p], remaining());
+}
+$("lock1").onclick = () => lockSelected(0);
+$("lock2").onclick = () => lockSelected(1);
+
 function lockIn(p, k, time, bet) {
   if (!game || game.phase !== "asking" || game.done[p]) return;
   game.done[p] = true; game.picks[p] = k; game.times[p] = time;
+  $("lock" + (p + 1)).disabled = true;
   if (isMatch()) {
     // Lock the bet: use the one passed in (computer / online guest) or the one selected; it must be unused this round.
     let w = bet ?? game.wager[p];
@@ -1352,6 +1397,7 @@ function endRound() {
   if (!game || game.phase !== "asking") return;
   game.phase = "reveal";
   $("game").classList.remove("asking");
+  $("lock1").classList.remove("show"); $("lock2").classList.remove("show");
   stopTimers();
   if (isMatch()) [0, 1].forEach(p => {
     // A player who ran out of time still uses up the bet they had selected.
@@ -1368,7 +1414,7 @@ function endRound() {
     if (isMatch()) {
       $("panel" + (p + 1)).classList.remove("hidden-opts");
       const btns = $("opts" + (p + 1)).children;
-      [...btns].forEach(b => { b.disabled = true; b.classList.remove("chosen"); });
+      [...btns].forEach(b => { b.disabled = true; b.classList.remove("chosen", "picked"); });
       btns[correctIdx].classList.add("correct");
       const pk = game.picks[p], w = game.wager[p];
       if (pk === correctIdx) { gains[p] = w; game.scores[p] += w; game.right[p]++; setStatus(p, `✔ +${w}`, "right"); }
@@ -1377,7 +1423,7 @@ function endRound() {
     }
     $("panel" + (p + 1)).classList.remove("hidden-opts");
     const btns = $("opts" + (p + 1)).children;
-    [...btns].forEach(b => { b.disabled = true; b.classList.remove("chosen"); });
+    [...btns].forEach(b => { b.disabled = true; b.classList.remove("chosen", "picked"); });
     btns[correctIdx].classList.add("correct");
     const pk = game.picks[p];
     if (pk === null) { setStatus(p, "⏰ Time's up", "wrong"); }
@@ -1486,16 +1532,19 @@ document.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (game.phase === "reveal" && (k === " " || k === "enter")) { e.preventDefault(); advance(); return; }
   if (game.phase !== "asking") return;
-  if (isMatch()) { // bet keys
+  if (isMatch()) { // bet keys and lock-in keys
     if (mode === "pvp" && P2_WKEYS.includes(k)) return setWager(1, WAGERS[P2_WKEYS.indexOf(k)]);
     if (P1_WKEYS.includes(k)) return setWager(localPlayer(), WAGERS[P1_WKEYS.indexOf(k)]);
+    if (mode === "pvp" && k === "g") return lockSelected(0);
+    if (mode === "pvp" && k === "h") return lockSelected(1);
+    if (mode !== "pvp" && k === "enter") { e.preventDefault(); return lockSelected(localPlayer()); }
   }
   if (mode === "pvp") {
-    if (P1_KEYS.includes(k)) lockIn(0, P1_KEYS.indexOf(k), remaining());
-    else if (P2_KEYS.includes(k)) lockIn(1, P2_KEYS.indexOf(k), remaining());
+    if (P1_KEYS.includes(k)) answer(0, P1_KEYS.indexOf(k));
+    else if (P2_KEYS.includes(k)) answer(1, P2_KEYS.indexOf(k));
   } else {
     const idx = P1_KEYS.includes(k) ? P1_KEYS.indexOf(k) : NUM_KEYS.indexOf(k);
-    if (idx >= 0) lockIn(localPlayer(), idx, remaining());
+    if (idx >= 0) answer(localPlayer(), idx);
   }
 });
 
