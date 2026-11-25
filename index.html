@@ -375,6 +375,9 @@
   .wchip.used { opacity: .25; text-decoration: line-through; }
   .wchip:disabled { cursor: default; }
   .match-rules { margin: 0; padding-left: 18px; line-height: 1.6; }
+  .rounds-pick { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+  .rounds-pick .modes { flex: 1 1 280px; }
+  .rounds-btn:disabled { cursor: not-allowed; opacity: .6; }
   /* In a match, a tapped answer is only "picked" (changeable) until locked or time runs out */
   .opt.picked, .panel.hidden-opts .opt.picked { opacity: 1; border-color: var(--gold); background: rgba(255, 197, 61, .14); box-shadow: 0 0 0 1px var(--gold) inset; }
   .lock-btn {
@@ -544,9 +547,16 @@
       <button class="game-card match" id="matchCard">
         <span class="gc-icon">🏆</span>
         <span class="gc-title">Trivia Match</span>
-        <span class="gc-desc">6 rounds of 4 questions. Before each round, players take turns spinning the category wheel: Elections, Presidents, U.S. Wars, States, Policy or Wild Card. Bet 1, 3, 5 and 7 points each round. A right answer wins your bet.</span>
+        <span class="gc-desc">3 or 6 rounds of 4 questions. Before each round, players take turns spinning the category wheel: Elections, Presidents, U.S. Wars, States, Policy or Wild Card. Bet 1, 3, 5 and 7 points each round. A right answer wins your bet.</span>
         <span class="gc-progress">Most points after round 6 wins</span>
       </button>
+    </div>
+    <div class="rounds-pick" id="roundsPick">
+      <span class="wlabel">Match length</span>
+      <div class="modes" style="margin:0">
+        <button class="mode-btn rounds-btn" data-r="3">3 rounds · 12 questions</button>
+        <button class="mode-btn rounds-btn" data-r="6">6 rounds · 24 questions</button>
+      </div>
     </div>
     <p class="hint center" id="guestNote" style="display:none">You're the guest. The host starts the match, and you'll jump in automatically.</p>
   </div>
@@ -735,7 +745,7 @@ const REGIONS = ["All", "Northeast", "South", "Midwest", "West"];
 const QUESTIONS_PER_DUEL = 10;
 const PASS = 7;          // correct answers needed to clear an era / star a state
 const SECONDS = 10;        // solo: seconds per question
-const MATCH_SECONDS = 15;  // duels (Trivia Match): seconds per question
+const MATCH_SECONDS = 20;  // duels (Trivia Match): seconds per question
 const WIN_BONUS = 250;
 const P1_KEYS = ["a", "s", "d", "f"];
 const P2_KEYS = ["j", "k", "l", ";"];
@@ -953,12 +963,20 @@ const HINTS = {
 };
 const SCORE_RULES = {
   solo: '<b>Scoring:</b> correct answer = 100 pts + 10 pts for every second left. Wrong or no answer = 0.',
-  duel: '<b>Trivia Match rules:</b><ul class="match-rules"><li>6 rounds of 4 questions. Before each round, one player spins the 🎡 category wheel (players take turns): 🗳️ Presidential Elections, 🎩 Presidents, ⚔️ U.S. Wars, ⭐ States, 📜 Policy or 🃏 Wild Card. No question repeats in a game.</li>' +
+  duel: () => '<b>Trivia Match rules:</b><ul class="match-rules"><li>' + matchRounds + ' rounds of 4 questions (you can choose 3 or 6 below). Before each round, one player spins the 🎡 category wheel (players take turns): 🗳️ Presidential Elections, 🎩 Presidents, ⚔️ U.S. Wars, ⭐ States, 📜 Policy or 🃏 Wild Card. No question repeats in a game.</li>' +
     '<li>Every round you have four bets: <b>1, 3, 5 and 7</b> points. Pick a bet for each question; each bet can be used only once per round.</li>' +
-    '<li><b>15 seconds</b> per question. Tap an answer to pick it; you can change your answer and bet until time runs out, or press <b>Lock in</b> to finish early.</li>' +
+    '<li><b>20 seconds</b> per question. Tap an answer to pick it; you can change your answer and bet until time runs out, or press <b>Lock in</b> to finish early.</li>' +
     '<li>Right answer = you win your bet. Wrong or no answer = 0.</li>' +
-    '<li>Most points after round 6 wins the match and a win on the leaderboard.</li></ul>',
+    '<li>Most points after the last round wins the match and a win on the leaderboard.</li></ul>',
 };
+// Match length (3 or 6 rounds), remembered on this device. Online, the host's choice applies.
+let matchRounds = Number(localStorage.getItem("americanStoryRounds")) === 3 ? 3 : 6;
+document.querySelectorAll(".rounds-btn").forEach(b => b.onclick = () => {
+  matchRounds = Number(b.dataset.r);
+  localStorage.setItem("americanStoryRounds", String(matchRounds));
+  if (mode !== "solo") $("scoreRule").innerHTML = SCORE_RULES.duel();
+  refreshHome();
+});
 const BET_KEYS_HINT = {
   pvp: ' Bets: Player 1 <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> · Player 2 <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> (1 / 3 / 5 / 7). Lock in: Player 1 <kbd>G</kbd> · Player 2 <kbd>H</kbd>.',
   cpu: ' Bets: <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> (1 / 3 / 5 / 7). Lock in: <kbd>Enter</kbd>.',
@@ -971,7 +989,7 @@ function setMode(m) {
   $("cpubox").style.display = m === "cpu" ? "" : "none";
   $("onlinebox").style.display = m === "online" ? "" : "none";
   $("keyhint").innerHTML = HINTS[m] + (BET_KEYS_HINT[m] || "");
-  $("scoreRule").innerHTML = m === "solo" ? SCORE_RULES.solo : SCORE_RULES.duel;
+  $("scoreRule").innerHTML = m === "solo" ? SCORE_RULES.solo : SCORE_RULES.duel();
   if (m !== "online") { closeOnline(); onlineStatus(""); }
   refreshHome();
 }
@@ -986,6 +1004,9 @@ function refreshHome() {
   document.querySelector(".game-cards").classList.toggle("single", !solo);
   $("historyCard").disabled = $("statesCard").disabled = $("matchCard").disabled = guestLocked;
   $("guestNote").style.display = guestLocked ? "" : "none";
+  // Match length picker: duels only; online guests can see but not change it (the host decides).
+  $("roundsPick").style.display = solo ? "none" : "";
+  document.querySelectorAll(".rounds-btn").forEach(b => { b.classList.toggle("selected", Number(b.dataset.r) === matchRounds); b.disabled = guestLocked; });
   $("leaveBtn").style.display = mode === "online" && peer ? "" : "none";
 }
 function goHome() { stopWheel(); closeSheet(); renderBoard(); refreshHome(); show("home"); }
@@ -1145,6 +1166,12 @@ function renderLobby() {
 }
 function broadcastLobby() { if (isHost) send({ t: "lobby", players: lobbyPlayers() }); }
 
+const CONNECT_TIMEOUT_MS = 15000;
+const NET_TIPS = '<ul class="match-rules" style="text-align:left;display:inline-block;margin-top:6px">' +
+  '<li>Put both devices on the <b>same home Wi‑Fi</b>, or</li><li>connect the computer to a <b>phone hotspot</b>, or</li><li>play from two phones on cellular data.</li></ul>';
+const NET_HELP_LINK = "⚠️ Couldn't connect to the host's device. This usually happens when one device is on a <b>work or school network</b> that blocks direct connections between devices. Try:<br>" + NET_TIPS;
+const NET_HELP_SERVICE = "⚠️ Couldn't reach the online matchmaking service. Your network may be blocking it (common on <b>work or school networks</b>). Try:<br>" + NET_TIPS;
+
 function createRoom(attempt = 0) {
   if (!peerAvailable()) return;
   closeOnline();
@@ -1153,7 +1180,9 @@ function createRoom(attempt = 0) {
   onlineStatus("Creating room…");
   const p = peer = new Peer(ROOM_PREFIX + roomCode);
   refreshHome();
-  p.on("open", () => { renderLobby(); startHeartbeat(); });
+  // If the matchmaking service can't be reached (often blocked on work/school networks), say so instead of hanging.
+  const openTimer = setTimeout(() => { if (peer === p && !p.open) { closeOnline(); refreshHome(); onlineStatus(NET_HELP_SERVICE); } }, CONNECT_TIMEOUT_MS);
+  p.on("open", () => { clearTimeout(openTimer); renderLobby(); startHeartbeat(); });
   p.on("connection", c => {
     // Turn people away if the room is full or a match is already running.
     const full = guests.length >= MAX_PLAYERS - 1, busy = inMatch();
@@ -1180,12 +1209,18 @@ function joinRoom() {
   onlineStatus("Connecting…");
   const p = peer = new Peer();
   refreshHome();
+  let opened = false;
+  // Give up after a while with a helpful message (direct device-to-device links are often blocked on work/school networks).
+  const failJoin = msg => { if (peer !== p || opened) return; closeOnline(); refreshHome(); onlineStatus(msg); };
+  const joinTimer = setTimeout(() => failJoin(p.open ? NET_HELP_LINK : NET_HELP_SERVICE), CONNECT_TIMEOUT_MS);
   p.on("open", () => {
+    onlineStatus("Found the room. Connecting to the host…");
     const c = hostConn = p.connect(ROOM_PREFIX + code, { reliable: true });
-    c.on("open", () => { hostLast = Date.now(); startHeartbeat(); c.send({ t: "hello", name: myName(), avatar: myAvatar() }); onlineStatus("✅ Connected! Joining the room…"); refreshHome(); });
+    c.on("open", () => { opened = true; clearTimeout(joinTimer); hostLast = Date.now(); startHeartbeat(); c.send({ t: "hello", name: myName(), avatar: myAvatar() }); onlineStatus("✅ Connected! Joining the room…"); refreshHome(); });
+    c.on("iceStateChanged", s => { if (!opened && s === "failed") { clearTimeout(joinTimer); failJoin(NET_HELP_LINK); } });
     c.on("data", m => { hostLast = Date.now(); onGuestMessage(m); });
-    c.on("close", () => { if (hostConn === c) hostLeft(); });
-    c.on("error", () => { if (hostConn === c) hostLeft(); });
+    c.on("close", () => { if (hostConn !== c) return; if (opened) hostLeft(); else { clearTimeout(joinTimer); failJoin(NET_HELP_LINK); } });
+    c.on("error", () => { if (hostConn !== c) return; if (opened) hostLeft(); else { clearTimeout(joinTimer); failJoin(NET_HELP_LINK); } });
   });
   p.on("error", err => {
     if (peer !== p) return;
@@ -1232,7 +1267,7 @@ function onGuestMessage(m) {
     case "full": closeOnline(); refreshHome(); onlineStatus(`⚠️ That room is full (${MAX_PLAYERS} players max).`); break;
     case "busy": closeOnline(); refreshHome(); onlineStatus("⚠️ That room is in the middle of a match. Try again when it's over."); break;
     case "start":
-      if (Array.isArray(m.qs) && Array.isArray(m.names) && Number.isInteger(m.you) && m.you > 0 && m.you < Math.min(m.names.length, MAX_PLAYERS)) {
+      if (Array.isArray(m.qs) && [3, 6].map(r => r * Q_PER_ROUND).includes(m.qs.length) && Array.isArray(m.names) && Number.isInteger(m.you) && m.you > 0 && m.you < Math.min(m.names.length, MAX_PLAYERS)) {
         me = m.you;
         const names = m.names.slice(0, MAX_PLAYERS).map(n => String(n).slice(0, 20));
         closeSheet();
@@ -1325,7 +1360,7 @@ function startDuel(ctx) {
 // ---------- TRIVIA MATCH (duels) ----------
 const WAGERS = [1, 3, 5, 7];
 const P1_WKEYS = ["q", "w", "e", "r"], P2_WKEYS = ["u", "i", "o", "p"];
-const NUM_ROUNDS = 6;
+// Rounds per match come from the match itself (3 or 6), see game.rounds.
 const Q_PER_ROUND = 4;
 // The six wheel categories, in wheel order (clockwise from the top).
 const MATCH_CATS = {
@@ -1352,9 +1387,9 @@ function matchPool(cat) {
 }
 function startMatch() {
   if (!canStart()) return;
-  for (const cat of WHEEL) if (matchPool(cat).length < Q_PER_ROUND * NUM_ROUNDS) { toast(`Questions for ${MATCH_CATS[cat].name} aren't available yet.`); return; }
+  for (const cat of WHEEL) if (matchPool(cat).length < Q_PER_ROUND * matchRounds) { toast(`Questions for ${MATCH_CATS[cat].name} aren't available yet.`); return; }
   // Questions are drawn round by round, after each wheel spin.
-  launch(Array(NUM_ROUNDS * Q_PER_ROUND).fill(null), { type: "match", id: "match" });
+  launch(Array(matchRounds * Q_PER_ROUND).fill(null), { type: "match", id: "match" });
 }
 // Draw 4 questions for round r from a category, never repeating a question already used in this game.
 function drawRound(r, cat) {
@@ -1362,7 +1397,7 @@ function drawRound(r, cat) {
   const picks = pickFresh({ type: "match", id: cat }, pool, Q_PER_ROUND);
   picks.forEach(q => game.usedQ.add(normQ(q.q)));
   return picks.map(q => ({
-    era: `${MATCH_CATS[cat].icon} Round ${r + 1} of ${NUM_ROUNDS} · ${MATCH_CATS[cat].name}${q.tag ? " — " + q.tag : ""}`,
+    era: `${MATCH_CATS[cat].icon} Round ${r + 1} of ${game.rounds} · ${MATCH_CATS[cat].name}${q.tag ? " — " + q.tag : ""}`,
     q: q.q, a: q.a, f: q.f || "", opts: shuffle([q.a, ...q.w]),
   }));
 }
@@ -1397,7 +1432,7 @@ function beginSpin() {
   $("game").classList.remove("asking");
   $("nextRow").classList.remove("show");
   buildWheel();
-  $("wheelTitle").textContent = `Round ${r + 1} of ${NUM_ROUNDS}`;
+  $("wheelTitle").textContent = `Round ${r + 1} of ${game.rounds}`;
   $("wheelResult").textContent = "";
   $("wheelModal").classList.add("show");
   renderSpinPrompt();
@@ -1529,7 +1564,7 @@ function beginGame(names, qs, ctx, avatars = []) {
   game = { n, names, qs, ctx, avatars, i: -1, phase: "idle", history: [],
     scores: fill(0), right: fill(0), picks: fill(null), times: fill(0), done: fill(false), gone: fill(false), sel: fill(null),
     wager: fill(null), used: fill(() => new Set()), // match bets: current bet and bets already used this round
-    usedQ: new Set(), spinRound: -1, spinning: false }; // match: questions already asked this game; wheel state
+    usedQ: new Set(), spinRound: -1, spinning: false, rounds: Math.max(1, Math.round(qs.length / Q_PER_ROUND)) }; // match: questions already asked this game; wheel state
   const you = p => (mode === "online" && p === me) ? " (you)" : "";
 
   // Scoreboard: classic left/right layout for 1–2 players, a row of chips for 3–4.
@@ -1579,7 +1614,7 @@ function showQuestion() {
     const r = Math.floor(game.i / Q_PER_ROUND), qi = game.i % Q_PER_ROUND;
     if (qi === 0) game.used = game.used.map(() => new Set()); // fresh set of bets each round
     for (let p = 0; p < n; p++) game.wager[p] = interactive(p) ? firstFree(p) : null; // start on the lowest bet still available
-    $("qcount").textContent = `Round ${r + 1}/${NUM_ROUNDS} · Q${qi + 1}/${Q_PER_ROUND}`;
+    $("qcount").textContent = `Round ${r + 1}/${game.rounds} · Q${qi + 1}/${Q_PER_ROUND}`;
   } else $("qcount").textContent = `Question ${game.i + 1} / ${game.qs.length}`;
   $("era").textContent = q.era || "";
   $("question").textContent = q.q;
@@ -1789,7 +1824,7 @@ function endDuel() {
   let banner = "", passed = false, nextCtx = null;
   if (ctx && ctx.type === "match") {
     // Match summary: points per round for each player.
-    banner = "Round scores — " + names.map((nm, p) => `${nm}: ` + Array.from({ length: NUM_ROUNDS }, (_, r) =>
+    banner = "Round scores — " + names.map((nm, p) => `${nm}: ` + Array.from({ length: game.rounds }, (_, r) =>
       game.history.slice(r * Q_PER_ROUND, (r + 1) * Q_PER_ROUND).reduce((s, h) => s + (h.gains[p] || 0), 0)).join(" · ")).join("  |  ");
     passed = winner !== -1 && !lost;
   } else if (ctx) {
